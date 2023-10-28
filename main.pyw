@@ -100,7 +100,7 @@ def carrega(filepath):
     # if loaded_files.get(files[index]) is not None: return # This could work also, but i dont get it completely
 
     if filepath.endswith('.ARW'):
-        # Todo ask user if he indeed wants to open ARW files
+        # Todo ask user if he indeed wants to open *.ARW files
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
         raw = rawpy.imread(filepath)
         rgb = raw.postprocess() # This is a slow function
