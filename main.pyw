@@ -42,6 +42,7 @@ feedback_label_text.set("init")
 feedback_label = tk.Label(root, textvariable=feedback_label_text, font=('Arial', 12))
 feedback_label.place(y=200, anchor=tk.NW)
 
+
 # Toggle file information display
 def toggle_file_info(event):
     global file_info_visible
@@ -50,6 +51,7 @@ def toggle_file_info(event):
         file_info_label.place(anchor=tk.NW)
     else:
         file_info_label.place_forget()
+
 
 # Get the source directory from user input
 if debugging: source_dir = r"C:\Users\glauc\Desktop\kjaf"
