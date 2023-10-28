@@ -206,3 +206,4 @@ print("fim")
 #overlay camera settings
 #Implement option to hide bracketing
 # Sort based on exposure?
+# Todoo
