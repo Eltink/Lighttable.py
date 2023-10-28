@@ -9,52 +9,22 @@ from tkinter import ttk
 # option to include subdirs or not?
 # warning if database is too big?
 
-debugging = 0
+debugging = 1
 root = None
-def copy_images(selection_folder, destination_folder, base_folder, target_format, source_format, progress_var, feedback_text):
+def file_finder(database, dest_dir, wanted_files):
     global root
-    copied_images = set(os.listdir(destination_folder))
-    selection_images = set(os.listdir(selection_folder))
-    print(f"selection_images {selection_images}")
-    missing_images = []
-
-    total_files = sum(len(files) for _, _, files in os.walk(selection_folder))
-    copied_files = 0
-
-    for path, subdir, files in os.walk(base_folder):
+    global copied_images, copied_files, source_filepaths, missing_images, feedback_text, total_files, progress_var
+    for path, subdir, files in os.walk(database):
         for file in files:
-            if target_format in file:
-                file_im_looking_for = file.replace(target_format, source_format)
-                target_filepath = os.path.join(path, file)
-                print("file_im_looking_for", file_im_looking_for)
-                print("target_filepath", target_filepath)
-                print(f"path {path}")
-                print(f"file {file}")
-                # print("file", file)
-                print(f"file {file} in selection_images {selection_images} is {file in selection_images}")
-                print("\n")
-                if file_im_looking_for in selection_images:
-                    try:
-                        shutil.copy(target_filepath, destination_folder)
-                        copied_images.add(file)
-                        copied_files += 1
+            if file in wanted_files:
+                source_filepath = os.path.join(path, file)
+                file_copier(source_filepath, dest_dir)
 
-                        progress = int((copied_files / total_files) * 100)
-                        progress_var.set(progress)
-
-                        feedback_text.set(f"Copied {copied_files} of {total_files} images")
-                    except Exception as e:
-                        feedback_text.set(f"Error copying {target_filepath}: {str(e)}")
-                        missing_images.append(file)
-
-    print("missing_images", missing_images)
     if missing_images:
-        feedback_text.set(
-            f"Some images were not found in the base folder.\n"
-            f"Copied images: {copied_files}\n"
-            f"Missing files: {len(missing_images)}\n"
-            f"Failure rate: {100 * len(missing_images) / total_files}%"
-        )
+        feedback_text.set(f"Some images were not found in the base folder.\n"
+                          f"Copied images: {copied_files}\n"
+                          f"Missing files: {len(missing_images)}\n"
+                          f"Failure rate: {100 * len(missing_images) / total_files}%")
     else: feedback_text.set(f"Copied {copied_files} of {total_files} images")
 
     if debugging: return
@@ -62,6 +32,24 @@ def copy_images(selection_folder, destination_folder, base_folder, target_format
     messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
                                             f"Copied {copied_files} of {total_files} images")
     if missing_images: messagebox.showinfo("Missing Images", str(missing_images))
+
+
+def file_copier(source_filepath, dest_dir):
+    global copied_images, copied_files, source_filepaths, missing_images, feedback_text, total_files, progress_var
+    try:
+        shutil.copy(source_filepath, dest_dir)
+        copied_images.append(source_filepath)
+        source_filepaths.append(source_filepath)
+        copied_files += 1
+
+        progress = int((copied_files / total_files) * 100)
+        progress_var.set(progress)
+
+        feedback_text.set(f"Copied {copied_files} of {total_files} images")
+
+    except Exception as e:
+        missing_images.append(source_filepath)
+        feedback_text += f"File {source_filepath} is wanted but could not be copied from {source_filepath} with error {e}.\n"
 
 def browse_folder(entry):
     folder_path = filedialog.askdirectory()
@@ -71,31 +59,36 @@ def browse_folder(entry):
 def main():
     def start_copying():
         global debugging
+        global copied_images, copied_files, source_filepaths, missing_images, feedback_text, total_files, progress_var
 
         base_de_dados = base_de_dados_entry.get()
         selecao = selecao_entry.get()
         formato_quero = formato_quero_entry.get()
         formato_tenho = formato_tenho_entry.get()
 
-        if not formato_quero:
-            formato_quero = ".ARW"
-        if not formato_tenho:
-            formato_tenho = ".JPG"
+        if not formato_quero: formato_quero = ".ARW"
+        if not formato_tenho: formato_tenho = ".JPG"
         if debugging:
-            if not base_de_dados:
-                base_de_dados = r"E:\Selecionar\2022_01_22_Festas parte 208"
-            if not selecao:
-                selecao = r"E:\Selecionar\2022_01_22_Festas parte 208\JPG sel"
+            if not base_de_dados: base_de_dados = r"E:\Selecionar\2022_01_22_Festas parte 208"
+            if not selecao:       selecao =       r"E:\Selecionar\2022_01_22_Festas parte 208\JPG sel"
 
         destino = os.path.join(selecao, "copiadas")
 
-        if not os.path.exists(destino):
-            os.makedirs(destino)
+        if not os.path.exists(destino): os.makedirs(destino)
 
         progress_var.set(0)
         feedback_text.set("Copying images...")
 
-        copy_images(selecao, destino, base_de_dados, formato_quero, formato_tenho, progress_var, feedback_text)
+        wanted_files = [file.replace(formato_tenho, formato_quero) for file in os.listdir(selecao)]
+
+        copied_images = set(os.listdir(destino))
+        selection_images = set(wanted_files)
+        missing_images = []
+
+        total_files = len(wanted_files)
+        copied_files = 0
+
+        file_finder(base_de_dados, destino, wanted_files)
 
     global root
     root = tk.Tk()
@@ -146,3 +139,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
