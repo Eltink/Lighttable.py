@@ -84,11 +84,13 @@ else:        showable = is_it_showable(filepaths)  # Example: [1, 1, 0, 1]
 
 if timing: print("Time to calculate showable: ", time.time()-t1)
 files = [file for file, is_showable in zip(files, showable) if is_showable]
-filepaths = [filepath for filepath, is_showable in zip(filepaths, showable) if is_showable]
+# Todo check source size before running
+filepaths = [filepath for filepath, is_showable in zip(filepaths, showable) if is_showable] # Is this running twice?
 if timing: print("Time to calculate files: ", time.time()-t0)
 
 loaded_files = dict.fromkeys(filepaths, None)
 copied_files = {}
+
 
 # Load an image and perform necessary adjustments
 def carrega(filepath):
@@ -98,6 +100,7 @@ def carrega(filepath):
     # if loaded_files.get(files[index]) is not None: return # This could work also, but i dont get it completely
 
     if filepath.endswith('.ARW'):
+        # Todo ask user if he indeed wants to open ARW files
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
         raw = rawpy.imread(filepath)
         rgb = raw.postprocess() # This is a slow function
