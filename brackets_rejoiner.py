@@ -36,13 +36,7 @@ def brackets_rejoiner(filename, median_folder, output_folder):
     try:
         target_darker_ev = ExposureBiasValue(target_darker_path)
         print("Target Darker File EV:", target_darker_ev)
-        if target_darker_ev == EV - 3:
-            copia_arquivo(median_folder, target_darker, output_folder)
-            print("Copied target darker file:", target_darker)
-        elif target_darker_ev == EV - 2:
-            copia_arquivo(median_folder, target_darker, output_folder)
-            print("Copied target darker file:", target_darker)
-        elif target_darker_ev == EV - 1:
+        if target_darker_ev in [EV - 1, EV - 2, EV - 3]:
             copia_arquivo(median_folder, target_darker, output_folder)
             print("Copied target darker file:", target_darker)
         else:
@@ -58,13 +52,7 @@ def brackets_rejoiner(filename, median_folder, output_folder):
     try:
         target_lighter_ev = ExposureBiasValue(target_lighter_path)
         print("Target Lighter File EV:", target_lighter_ev)
-        if target_lighter_ev == EV + 3:
-            copia_arquivo(median_folder, target_lighter, output_folder)
-            print("Copied target lighter file:", target_lighter)
-        elif target_lighter_ev == EV + 2:
-            copia_arquivo(median_folder, target_lighter, output_folder)
-            print("Copied target lighter file:", target_lighter)
-        elif target_lighter_ev == EV + 1:
+        if target_lighter_ev in [EV + 1, EV + 2, EV + 3]:
             copia_arquivo(median_folder, target_lighter, output_folder)
             print("Copied target lighter file:", target_lighter)
         else:
@@ -72,8 +60,6 @@ def brackets_rejoiner(filename, median_folder, output_folder):
             # TODO check if it was bracketing, if so, info incomplete bracketing
     except Exception as e:
         print("Error:", e)
-
-
 
 def find_associated_bracketed_images(database_folder, median_folder, output_folder):
     # Create the output folder if it doesn't exist
