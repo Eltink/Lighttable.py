@@ -4,39 +4,27 @@ from PIL import Image, ImageTk
 from PIL.ExifTags import TAGS
 import os
 from copiador_de_arquivo import copia_arquivo
-import time
-import shutil
+
+# Current working, created a standalone GUI
 
 [lower_limit, upper_limit] = [-0.7, 0.3]
 
-source_dir = 'C:\\Users\\glauc\\Desktop\\kjaf'
-# source_dir = 'D:\\128_sorter'
-source_dir = filedialog.askdirectory()
-dest_dir = source_dir
-try:
-    os.makedirs(dest_dir + "\\Unbracketeds")
-    os.makedirs(dest_dir + "\\Braketed_Medians")
-    os.makedirs(dest_dir + "\\Braketed_Outliers")
-except:
-    pass
+# Function to update the progress label
+def update_progress(progress):
+    progress_label.config(text=f"Progress: {progress:.2f}%")
 
-Unbracketeds_dir        = os.path.join(dest_dir, "Unbracketeds")
-Braketed_Medians_dir    = os.path.join(dest_dir, "Braketed_Medians")
-Braketed_Outliers_dir   = os.path.join(dest_dir, "Braketed_Outliers")
+# Function to update the status label
+def update_status(status):
+    status_label.config(text=f"Status: {status}")
+    window.update()
 
-valid_extensions = [".jpg", ".jpeg", ".png", ".gif", ".JPG"]  # Add any other image file extensions if necessary
-files = []
-for root, dirs, files_list in os.walk(source_dir):  # Use a different variable name for the loop variable
-    for file_name in files_list:  # Use a different variable name for the loop variable
-        if any(file_name.endswith(ext) for ext in valid_extensions):
-            file_path = os.path.join(root, file_name)  # Full path of the image file
-            files.append(file_path)  # Append to the image_files list
-
-# Now 'files' contains the full paths of all image files in the 'source_dir' and its subdirectories
+# Function to update the statistics label
+def update_statistics(count):
+    statistics_label.config(text=f"Unbracketed: {count[0]}, Medians: {count[1]}, Outliers: {count[2]}")
 
 # Extract Exif metadata from an image file
-def exif(filename, gettag):
-    img = Image.open(os.path.join(source_dir, filename))
+def exif(file_path, gettag):
+    img = Image.open(file_path)
     try:
         exif_table = {}
         for k, v in img._getexif().items():
@@ -46,69 +34,87 @@ def exif(filename, gettag):
     except (AttributeError, KeyError):
         return None
 
-def is_bracketed(filename):
-    img = Image.open(os.path.join(source_dir, filename))
+def is_bracketed(file_path):
     try:
-        ExposureMode = exif(filename, "ExposureMode")
+        ExposureMode = exif(file_path, "ExposureMode")
         if ExposureMode == 0:
-            return False  # is not braketed
+            return False  # is not bracketed
         elif ExposureMode == 2:
-            return True  # is braketed
+            return True  # is bracketed
         else:
-            print("filename", filename, "ExposureMode", ExposureMode)
+            print("file_path", file_path, "ExposureMode", ExposureMode)
             return None
     except:
-        print(f"Error: Failed to extract exif tags from file {filename}")
+        print(f"Error: Failed to extract exif tags from file {file_path}")
 
-def ExposureBiasValue(filename):
-    img = Image.open(os.path.join(source_dir, filename))
+# Function to handle the processing of files
+def process_files():
+    source_dir = filedialog.askdirectory()
+    dest_dir = source_dir
+
     try:
-        exif_table = {}
-        for k, v in img._getexif().items():
-            tag = TAGS.get(k)
-            exif_table[tag] = v
-        # print(exif_table)
-        print("exif_table[ExposureMode]",exif_table["ExposureMode"])
-        if exif_table["ExposureMode"] == 2:
-            return float(exif_table["ExposureBiasValue"])
-        else:
-            print(f"{filename} got faulty EXIF info")
-            return None  # Faulty data
-    except AttributeError:
-        print(f"Error: Failed to extract exif tags from file {filename}")
+        os.makedirs(os.path.join(dest_dir, "Unbracketeds"))
+        os.makedirs(os.path.join(dest_dir, "Braketed_Medians"))
+        os.makedirs(os.path.join(dest_dir, "Braketed_Outliers"))
+    except:
+        pass
 
+    Unbracketeds_dir = os.path.join(dest_dir, "Unbracketeds")
+    Braketed_Medians_dir = os.path.join(dest_dir, "Braketed_Medians")
+    Braketed_Outliers_dir = os.path.join(dest_dir, "Braketed_Outliers")
 
-print(f"Processing {len(files)} files")
-count = [0, 0, 0]
-for file in files:
-    # print("")
-    # print("file:", file)
-    # print("is_bracketed(file):", is_bracketed(file))
-    # print("ExposureBiasValue(file):", ExposureBiasValue(file))
-    # print("ExposureBiasValue(file) type:", type(ExposureBiasValue(file)))
-    # print("upper_limit:", upper_limit)
-    # print("ExposureBiasValue(file) <= upper_limit:", ExposureBiasValue(file) <= upper_limit)
-    # print("float(ExposureBiasValue(file)) <= upper_limit:", float(ExposureBiasValue(file)) <= upper_limit)
-    # I commented the lines above and it started working again. No idea why....
-    if not is_bracketed(file):
-        print(f"move {file} to Unbracketeds")
-        copia_arquivo(source_dir, file, Unbracketeds_dir)
-        count[0] += 1
-    elif is_bracketed(file):
-        print("lower_limit", lower_limit)
-        print("ExposureBiasValue(file)", ExposureBiasValue(file))
-        print("upper_limit", upper_limit)
-        print("lower_limit <= ExposureBiasValue(file) <= upper_limit", lower_limit <= ExposureBiasValue(file) <= upper_limit)
-        if lower_limit <= ExposureBiasValue(file) <= upper_limit:
-            print(f"move {file} to Braketed_Medians")
-            copia_arquivo(source_dir, file, Braketed_Medians_dir)
-            count[1] += 1
-        else:
-            print(f"move {file} to Braketed_Outliers")
-            copia_arquivo(source_dir, file, Braketed_Outliers_dir)
-            count[2] += 1
-    print(f"Progress: {((1 + files.index(file)) / len(files) * 100):.1f} % \n")
-print(count, "unbracketed, medians and outliers")
+    valid_extensions = [".jpg", ".jpeg", ".png", ".gif", ".JPG"]  # Add any other image file extensions if necessary
+    files = []
+    for root, dirs, files_list in os.walk(source_dir):
+        for file_name in files_list:
+            if any(file_name.endswith(ext) for ext in valid_extensions):
+                file_path = os.path.join(root, file_name)
+                files.append(file_path)
+    # Now 'files' contains the full paths of all image files in the 'source_dir' and its subdirectories
 
-print("fim :)")
-# TODO "press any key to close"???
+    count = [0, 0, 0]
+    total_files = len(files)
+    update_progress(0.0)
+    update_status("Processing files...")
+    update_statistics(count)
+
+    for i, file_path in enumerate(files):
+        update_progress((i + 1) / total_files * 100)
+        update_status(f"Processing file {i + 1}/{total_files}")
+        if not is_bracketed(file_path):
+            copia_arquivo(source_dir, file_path, Unbracketeds_dir)
+            count[0] += 1
+        elif is_bracketed(file_path):
+            if lower_limit <= float(exif(file_path, "ExposureBiasValue")) <= upper_limit:
+                copia_arquivo(source_dir, file_path, Braketed_Medians_dir)
+                count[1] += 1
+            else:
+                copia_arquivo(source_dir, file_path, Braketed_Outliers_dir)
+                count[2] += 1
+
+        update_statistics(count)
+
+    update_status("Processing complete!")
+    update_progress(100.0)
+
+# Create the main window
+window = tk.Tk()
+window.title("Image Processing")
+window.geometry("400x200")
+
+# Create labels for progress, status, and statistics
+progress_label = tk.Label(window, text="Progress: 0.00%")
+status_label = tk.Label(window, text="Status: Not started")
+statistics_label = tk.Label(window, text="Unbracketed: 0, Medians: 0, Outliers: 0")
+
+# Create a button to start processing files
+start_button = tk.Button(window, text="Start", command=process_files)
+
+# Place the widgets in the window
+progress_label.pack()
+status_label.pack()
+statistics_label.pack()
+start_button.pack()
+
+# Start the GUI event loop
+window.mainloop()
