@@ -4,50 +4,64 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 
-# TODO improve closing message
-# How many succesfull vs error
-#
+# TODO fix missing_images as its using the imasges from database to throw an error, not images from selecao
+# fix the definition of selecao?
+# option to include subdirs or not?
+# warning if database is too big?
 
+debugging = 0
 root = None
-def copy_images(source_folder, destination_folder, base_de_dados, formato_quero, formato_tenho, progress_var, feedback_text):
+def copy_images(selection_folder, destination_folder, base_folder, target_format, source_format, progress_var, feedback_text):
     global root
-    imagens_copiadas = set(os.listdir(destination_folder))
+    copied_images = set(os.listdir(destination_folder))
+    selection_images = set(os.listdir(selection_folder))
+    print(f"selection_images {selection_images}")
+    missing_images = []
 
-    nao_encontradas = []
-
-    total_files = 0
+    total_files = sum(len(files) for _, _, files in os.walk(selection_folder))
     copied_files = 0
 
-    for rootdir, _, files in os.walk(source_folder):
-        total_files += len(files)
-
-    for rootdir, _, files in os.walk(source_folder):
+    for path, subdir, files in os.walk(base_folder):
         for file in files:
-            if formato_tenho in file:
-                imagem_quero = file[:-len(formato_tenho)] + formato_quero
-                caminho_imagem_base_de_dados = os.path.join(base_de_dados, imagem_quero)
-                if imagem_quero not in imagens_copiadas:
-                    if os.path.exists(caminho_imagem_base_de_dados):
-                        shutil.copy(caminho_imagem_base_de_dados, destination_folder)
-                        imagens_copiadas.add(imagem_quero)
+            if target_format in file:
+                file_im_looking_for = file.replace(target_format, source_format)
+                target_filepath = os.path.join(path, file)
+                print("file_im_looking_for", file_im_looking_for)
+                print("target_filepath", target_filepath)
+                print(f"path {path}")
+                print(f"file {file}")
+                # print("file", file)
+                print(f"file {file} in selection_images {selection_images} is {file in selection_images}")
+                print("\n")
+                if file_im_looking_for in selection_images:
+                    try:
+                        shutil.copy(target_filepath, destination_folder)
+                        copied_images.add(file)
                         copied_files += 1
+
                         progress = int((copied_files / total_files) * 100)
                         progress_var.set(progress)
+
                         feedback_text.set(f"Copied {copied_files} of {total_files} images")
-                        root.update()
-                    else:
-                        nao_encontradas.append(imagem_quero)
+                    except Exception as e:
+                        feedback_text.set(f"Error copying {target_filepath}: {str(e)}")
+                        missing_images.append(file)
 
-    if nao_encontradas:
-        text = "Some images were not found in the base de dados.\n"
-        text += f"Copied images: {(copied_files)}\n"
-        text += f"Missing files: {len(nao_encontradas)}\n"
-        text += f"Fail rate: {100*len(nao_encontradas)/(total_files)}%\n"
-        feedback_text.set(text)
+    print("missing_images", missing_images)
+    if missing_images:
+        feedback_text.set(
+            f"Some images were not found in the base folder.\n"
+            f"Copied images: {copied_files}\n"
+            f"Missing files: {len(missing_images)}\n"
+            f"Failure rate: {100 * len(missing_images) / total_files}%"
+        )
+    else: feedback_text.set(f"Copied {copied_files} of {total_files} images")
 
-    messagebox.showinfo("nao_encontradas", str(nao_encontradas))
-
-    messagebox.showinfo("Copying Complete", "Image copying process completed.")
+    if debugging: return
+    # Show missing images and completion messages in the GUI
+    messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
+                                            f"Copied {copied_files} of {total_files} images")
+    if missing_images: messagebox.showinfo("Missing Images", str(missing_images))
 
 def browse_folder(entry):
     folder_path = filedialog.askdirectory()
@@ -56,6 +70,8 @@ def browse_folder(entry):
 
 def main():
     def start_copying():
+        global debugging
+
         base_de_dados = base_de_dados_entry.get()
         selecao = selecao_entry.get()
         formato_quero = formato_quero_entry.get()
@@ -65,6 +81,11 @@ def main():
             formato_quero = ".ARW"
         if not formato_tenho:
             formato_tenho = ".JPG"
+        if debugging:
+            if not base_de_dados:
+                base_de_dados = r"E:\Selecionar\2022_01_22_Festas parte 208"
+            if not selecao:
+                selecao = r"E:\Selecionar\2022_01_22_Festas parte 208\JPG sel"
 
         destino = os.path.join(selecao, "copiadas")
 
@@ -118,6 +139,8 @@ def main():
     feedback_text = tk.StringVar()
     feedback_label = tk.Label(root, textvariable=feedback_text)
     feedback_label.pack()
+
+    if debugging: start_copying()
 
     root.mainloop()
 
