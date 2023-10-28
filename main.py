@@ -4,8 +4,8 @@ from tkinter import filedialog
 from PIL import Image, ImageTk
 from PIL.ExifTags import TAGS
 import os
-import rawpy  # Necessary to read .arw files
-import imageio  # Necessary to read .arw files
+import rawpy # Necessary to read .arw files
+import imageio # Necessary to read .arw files
 import threading
 
 import brackets_sorter
@@ -39,7 +39,6 @@ feedback_label_text.set("init")
 feedback_label = tk.Label(root, textvariable=feedback_label_text, font=('Arial', 12))
 feedback_label.place(anchor=tk.SW)
 
-
 # Toggle file information display
 def toggle_file_info(event):
     global file_info_visible
@@ -49,13 +48,10 @@ def toggle_file_info(event):
     else:
         file_info_label.place_forget()
 
-
 # Get the source directory from user input
-if debugging:
-    source_dir = r"C:\Users\glauc\Desktop\kjaf"
-# if debugging: source_dir = filedialog.askdirectory()
-else:
-    source_dir = filedialog.askdirectory()
+if debugging: source_dir = r"C:\Users\glauc\Desktop\2023_06_27_Israel_jpgs\Ibex"
+#if debugging: source_dir = filedialog.askdirectory()
+else: source_dir = filedialog.askdirectory()
 destination_dir = get_destination_dir(source_dir)
 
 # Define valid image file extensions
@@ -68,36 +64,35 @@ files = [file for file in os.listdir(source_dir) if any(file.endswith(ext) for e
 filepaths = [os.path.join(source_dir, file) for file in files]
 t1 = time.time()
 showable = is_it_showable(filepaths)  # Example: [1, 1, 0, 1]
-if timing: print("Time to calculate showable: ", time.time() - t1)
+if timing: print("Time to calculate showable: ", time.time()-t1)
 files = [file for file, is_showable in zip(files, showable) if is_showable]
-if timing: print("Time to calculate files: ", time.time() - t0)
+if timing: print("Time to calculate files: ", time.time()-t0)
 
 loaded_files = dict.fromkeys(files, None)
 copied_files = {}
 
-
 # Load an image and perform necessary adjustments
 def carrega(filename):
+    if loaded_files.get(filename) is not None:
+        print(f"Atempted to load file {filename} again")
+        return #Experimental line, not sure if it works or not...
+    print("Loading file: ", filename)
+    # if loaded_files.get(files[index]) is not None: return # This could work also, but i dont get it completely
     file_path = os.path.join(source_dir, filename)
 
     if filename.endswith('.ARW'):
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
         raw = rawpy.imread(file_path)
-        rgb = raw.postprocess()  # This is a slow function
+        rgb = raw.postprocess() # This is a slow function
         img = Image.fromarray(rgb)
-    else:
-        img = Image.open(file_path)
+    else: img = Image.open(file_path)
 
     try:
         Orientation = get_exif(file_path, "Orientation")
-        if Orientation == 8:
-            img = img.rotate(90, expand=True)
-        elif Orientation == 3:
-            img = img.rotate(180, expand=True)
-        elif Orientation == 6:
-            img = img.rotate(270, expand=True)
-    except Exception as e:
-        print(f"An error occurred on loading file {filename}: {e}")
+        if   Orientation == 8: img = img.rotate(90,  expand=True)
+        elif Orientation == 3: img = img.rotate(180, expand=True)
+        elif Orientation == 6: img = img.rotate(270, expand=True)
+    except Exception  as e: print(f"An error occurred on loading file {filename}: {e}")
 
     aspect_ratio = img.width / img.height
     screen_width = root.winfo_screenwidth()
@@ -105,42 +100,33 @@ def carrega(filename):
     screen_aspect_ratio = screen_width / screen_height
 
     if aspect_ratio < screen_aspect_ratio:
-        img = img.resize((int(screen_height * aspect_ratio), screen_height),
-                         Image.LANCZOS)  # Image.ANTIALIAS is an alternative. Better?
+        img = img.resize((int(screen_height * aspect_ratio), screen_height), Image.LANCZOS) #Image.ANTIALIAS is an alternative. Better?
     else:
         img = img.resize((screen_width, int(screen_width / aspect_ratio)), Image.LANCZOS)
 
-    loaded_files[filename] = ImageTk.PhotoImage(img)  # Converting the image from PIL to TK format
+    loaded_files[filename] = ImageTk.PhotoImage(img) # Converting the image from PIL to TK format
     # return ImageTk.PhotoImage(img)
     # Legacy version
 
-
 def get_image_metadata(file):
     filepath = os.path.join(source_dir, file)
-    metadata_tags = ["FocalLength", "FNumber", "ExposureTime", "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode",
-                     "DateTime", "LensModel"]
-    metadata_labels = ["FocalLength: ", "FNumber: ", "ExposureTime: ", "ISO-", "Exposure Bias: ", "Exposure Mode: ",
-                       "DateTime: ", "Lens: "]
+    metadata_tags = ["FocalLength",    "FNumber",     "ExposureTime", "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode", "DateTime", "LensModel"]
+    metadata_labels = ["FocalLength: ", "FNumber: ", "ExposureTime: ", "ISO-",         "Exposure Bias: ",   "Exposure Mode: ", "DateTime: ", "Lens: "]
     try:
         metadata = [str(get_exif(filepath, tag)) for tag in metadata_tags]
         if float(metadata[2]) < 1:
             metadata[2] = str(round(1 / float(metadata[2]))) + "s"
             metadata_labels[2] += " 1/"
-        else:
-            metadata[2] = str(round(float(metadata[2]))) + "s"
+        else: metadata[2] = str(round(float(metadata[2]))) + "s"
 
-        if metadata[5] == "0":
-            metadata[5] = "Auto exposure"
-        elif metadata[5] == "2":
-            metadata[5] = "Bracketing"
-        else:
-            metadata[5] = str(metadata[5]) + " (unknown case, please investigate)"
+        if metadata[5] == "0": metadata[5] = "Auto exposure"
+        elif metadata[5] == "2": metadata[5] = "Bracketing"
+        else: metadata[5] = str(metadata[5]) + " (unknown case, please investigate)"
         formatted_metadata = [label + value if value else "" for label, value in zip(metadata_labels, metadata)]
         return '\n'.join(formatted_metadata)
     except Exception as e:
         print(f"An error occurred getting metadata from file {file}: {e}")
         return None
-
 
 def mostra_imagem(file):
     if file in loaded_files:
@@ -149,14 +135,12 @@ def mostra_imagem(file):
             file_info_label.place(anchor=tk.NW)
             metadata = get_image_metadata(file)
             file_info_text.set(metadata)
-        else:
-            file_info_label.place_forget()
+        else: file_info_label.place_forget()
         feedback_label.pack()
 
         root.update()
-        root.title(
-            "Eu amo o Bernado - " + str(files[index_atual]) + " - " + str(index_atual + 1) + " of " + str(len(files)))
-    else:  # Debugging
+        root.title("Eu amo o Bernado - " + str(files[index_atual]) + " - " + str(index_atual + 1) + " of " + str(len(files)))
+    else: # Debugging
         print(f"File {file} was not found in loaded_files.Info for debugging follows:")
         print(f"index_atual: {index_atual}")
         print(f"files[index_atual]: {files[index_atual]}")
@@ -173,7 +157,6 @@ def mostra_imagem(file):
     #     return
     return
 
-
 # Event handlers
 def copiar(event):
     filename = files[index_atual]
@@ -183,16 +166,15 @@ def copiar(event):
         filepath = os.path.join(source_dir, filename)
         copia_arquivo(source_dir, filename, destination_dir)
         copied_files[filename] = True
-        if get_exif(filepath, "ExposureMode") != 2:  # Isnt bracketed
+        if get_exif(filepath, "ExposureMode") != 2: # Isnt bracketed
             feedback_label_text.set("Copied 1 unbracketed file")
-        elif get_exif(filepath, "ExposureMode") == 2:  # Is bracketed
+        elif get_exif(filepath, "ExposureMode") == 2: # Is bracketed
             feedback_label_text.set("Copied median")
             EV = get_exif(filepath, "ExposureBiasValue")
             darker = file_navigator(filepath, -1)
             if get_exif(darker, "ExposureBiasValue") in [EV - 3, EV - 2, EV - 1]:
-                copia_arquivo(source_dir, darker,
-                              destination_dir)  # How is this working, if source and darker are paths?
-                feedback_label_text.set(feedback_label_text.get() + " and darker")
+                copia_arquivo(source_dir, darker, destination_dir) # How is this working, if source and darker are paths?
+                feedback_label_text.set(feedback_label_text.get()+" and darker")
             lighter = file_navigator(filepath, +1)
             if get_exif(lighter, "ExposureBiasValue") in [EV + 3, EV + 2, EV + 1]:
                 copia_arquivo(source_dir, lighter, destination_dir)
@@ -200,30 +182,28 @@ def copiar(event):
 
         right(event)
 
-
 def proxima(event):
     global index_atual
     index_atual = (index_atual + 1) % len(files)
     mostra_imagem(files[index_atual])
-
 
 def anterior(event):
     global index_atual
     index_atual = (index_atual - 1) % len(files)
     mostra_imagem(files[index_atual])
 
-
 def right(event):
     proxima(event)
     if loaded_files.get(files[(index_atual + 1) % len(files)]) is None:
         carrega(files[index_atual + 1])
-
 
 def left(event):
     anterior(event)
     if loaded_files.get(files[(index_atual - 1) % len(files)]) is None:
         carrega(files[index_atual - 1])
 
+def exit_feedback(event):
+    tk.messagebox.showinfo("Copying Complete", "Image copying process completed.")
 
 # Bind keys to event handlers
 root.bind("<Up>", copiar)
@@ -233,23 +213,23 @@ root.bind("6", right)
 root.bind("4", left)
 root.bind("8", copiar)
 root.bind("i", toggle_file_info)
+root.bind("<Control-q>", exit_feedback)
 
 t0 = time.time()
 carrega(files[0])
-if timing: print("Time to load first image: ", time.time() - t0)
+if timing: print("Time to load first image: ", time.time()-t0)
 t1 = time.time()
 mostra_imagem(files[0])
-if timing: print("Time to show first image: ", time.time() - t1)
+if timing: print("Time to show first image: ", time.time()-t1)
 t2 = time.time()
 carrega(files[1])
-if timing: print("Time to load second image: ", time.time() - t2)
-if timing: print("Time to boot program: ", time.time() - t0)
+if timing: print("Time to load second image: ", time.time()-t2)
+if timing: print("Time to boot program: ", time.time()-t0)
+
 
 slideshow_event = threading.Event()
 slideshow_thread = None
 slideshow_running = False
-
-
 def start_slideshow(event=None):  # Add the event parameter with a default value of None
     global index_atual, slideshow_running, slideshow_thread
 
@@ -275,87 +255,117 @@ def start_slideshow(event=None):  # Add the event parameter with a default value
         slideshow_running = False
         if hasattr(root, "slideshow_thread") and slideshow_thread.is_alive():
             slideshow_thread.join()  # Wait for the thread to finish
-
-
 root.bind("s", start_slideshow)
 
 
+# WIP not working yet
+# Define a global flag and thread to track and interrupt the loading process
+#loading_thread = None
+#loading_in_progress = False
+#terminate_loading = False  # Flag to signal thread should be terminated
+#
+# Define your global variables here
+loading_in_progress = False
+loading_thread = None
+loaded_count = 0
+stop_loading_event = threading.Event()  # Event to signal the loading thread to stop
 def load_all_images(event=None):
-    global index_atual
+    global index_atual, loading_in_progress, loading_thread, loaded_count
 
-    # Create a new GUI window for progress display
-    progress_window = tk.Toplevel(root)
-    progress_window.title("Loading Images Progress")
-    progress_label = tk.Label(progress_window, text="Loading images... Please wait.")
-    progress_label.pack(padx=10, pady=10)  # Adjust the values as needed
+    if loading_thread and loading_thread.is_alive():
+        stop_loading_event.set()  # Signal the loading thread to stop
+        stop_loading_event.clear()  # Clear the event for the next loading
+        # Wait a short while for the thread to respond to the stop command
+        loading_thread.join(timeout=0.01)
+        loading_in_progress = False
+        loading_thread = None
 
-    total_images = len(files)
-    start_time = time.time()
-    loaded_count = 0
+    else:
+        loaded_count = 0
+        loading_in_progress = True
 
-    for i in range(len(files)):
-        if loaded_files.get(files[i]) is None:
-            carrega(files[i])
-            loaded_count += 1
+        # Create a new GUI window for progress display
+        progress_window = tk.Toplevel(root)
+        progress_window.title("Loading Images Progress")
+        progress_label = tk.Label(progress_window, text="Loading images... Please wait.")
+        progress_label.pack(padx=10, pady=10)  # Adjust the values as needed
 
-        progress = (loaded_count / total_images) * 100
-        current_time = time.time()
-        elapsed_time = current_time - start_time
+        total_images = len(files)
+        start_time = time.time()
 
-        if loaded_count > 0:
-            avg_time_per_image = elapsed_time / loaded_count
-            estimated_remaining_time = avg_time_per_image * (total_images - loaded_count)
-        else:
-            avg_time_per_image = 0
-            estimated_remaining_time = 0
+        def loading_thread_func():
+            global index_atual, loading_in_progress, loading_thread, loaded_count
+            for i in range(loaded_count, len(files)):
+                if stop_loading_event.is_set() or not loading_in_progress:
+                    # If the event is set or loading was manually stopped, interrupt the loading process
+                    break
 
-        if estimated_remaining_time > 60:
-            estimated_remaining_time_text = str(
-                f"Estimated Remaining Time: {estimated_remaining_time / 60:.2f} minutes")
-        else:
-            estimated_remaining_time_text = str(f"Estimated Remaining Time: {estimated_remaining_time:.1f} seconds")
+                if loaded_files.get(files[i]) is None:
+                    carrega(files[i])
+                    loaded_count += 1
 
-        progress_label.config(text=f"Progress: {progress:.2f}%\n"
-                                   f"Elapsed Time: {elapsed_time:.2f} seconds\n"
-                                   f"Average Time per Image: {avg_time_per_image:.3f} seconds\n"
-                                   f"{estimated_remaining_time_text}")
-        progress_window.update()
-    progress_window.destroy()  # Close the progress window when loading is complete
+                # Calculate the progress
+                progress = (loaded_count / total_images) * 100
+                # ... your actual image loading logic here ...
 
+                current_time = time.time()
+                elapsed_time = current_time - start_time
 
+                if loaded_count > 0:
+                    avg_time_per_image = elapsed_time / loaded_count
+                    estimated_remaining_time = avg_time_per_image * (total_images - loaded_count)
+                else:
+                    avg_time_per_image = 0
+                    estimated_remaining_time = 0
+
+                if estimated_remaining_time > 60:
+                    estimated_remaining_time_text = f"Estimated Remaining Time: {estimated_remaining_time:.2f} seconds"
+                else:
+                    estimated_remaining_time_text = f"Estimated Remaining Time: {estimated_remaining_time/60:.1f} minutes"
+
+                progress_label.config(text=f"Progress: {progress:.2f}%\n"
+                                           f"Elapsed Time: {elapsed_time:.2f} seconds\n"
+                                           f"Average Time per Image: {avg_time_per_image:.3f} seconds\n"
+                                           f"{estimated_remaining_time_text}")
+                progress_window.update()
+
+            loading_in_progress = False  # Reset the flag
+            progress_window.destroy()    # Close the progress window when loading is complete
+
+        loading_thread = threading.Thread(target=loading_thread_func)
+        loading_thread.start()
+
+# Bind the "l" key to the load_all_images function
 root.bind("l", load_all_images)
-
-
 def load_some_images(event=None):
-    global index_atual
-    num_images = 20  # Number of images to be loaded
+    global index_atual, loaded_files
+    #num_images = 20   # Number of images to be loaded
     allowed_time = 5  # Seconds to run the function for
     progress_window = tk.Toplevel(root)
     progress_window.title("Loading Images Progress")
-
     progress_label = tk.Label(progress_window, text="Loading images... Please wait.")
-    progress_label.pack(padx=10, pady=10)  # Adjust the values as needed
+    progress_label.pack(padx=80, pady=20)  # Adjust the values as needed
 
-    total_images = min(num_images, len(files))  # Limit to available files
+    # total_images = min(num_images, len(files))  # Limit to available files
+    total_images = len(files)  # Limit to available files
     start_time = time.time()
     loaded_count = 0
 
     while (time.time() - start_time) < allowed_time:
-        for i in range(total_images):
-            if loaded_files.get(files[i]) is None:
-                carrega(files[i])
-                loaded_count += 1
+        i = (index_atual + loaded_count) % len(files)  # Calculate the index based on index_atual
+        if loaded_files.get(files[i]) is None:
+            carrega(files[i])
+            loaded_count += 1
+        else:
+            loaded_count += 1 # This is needed to increase i. A more meaningfull implementation is needed
 
-            progress = (loaded_count / total_images) * 100
-            current_time = time.time()
-            elapsed_time = current_time - start_time
+        current_time = time.time()
+        elapsed_time = current_time - start_time
 
-            progress_label.config(text=f"Elapsed Time: {elapsed_time:.2f} seconds\n"
-                                       f"Loaded images: {loaded_count}\n")
-
-            progress_window.update()
+        progress_label.config(text= f"Elapsed Time: {elapsed_time:.2f} seconds\n" 
+                                    f"Loaded images: {loaded_count}\n")
+        progress_window.update()
     progress_window.destroy()  # Close the progress window when loading is complete
-
 
 root.bind("L", load_some_images)
 
