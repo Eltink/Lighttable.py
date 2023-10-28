@@ -9,7 +9,7 @@ import imageio # Necessary to read .arw files
 import threading
 import subprocess
 
-import brackets_sorter_v3
+import brackets_sorter
 from copiador_de_arquivo import copia_arquivo
 from tools import *
 
