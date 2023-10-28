@@ -1,4 +1,3 @@
-import tkinter
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
@@ -17,10 +16,19 @@ root.title("Eu amo o Bernado")
 root.state('zoomed')
 
 #For file metadata. Creating a StringVar class
+file_info_visible = True
 file_info_text = tk.StringVar()
-file_info_text.set("init\nisso ai") # set the text
+file_info_text.set("Nothing to display yet :)") # set the text
 file_info_Lablel = tk.Label(root, textvariable=file_info_text, font=('Arial', 12))
 file_info_Lablel.place(anchor= tk.NW)
+
+def toggle_file_info(event):
+    global file_info_visible
+    file_info_visible = not file_info_visible
+    if file_info_visible:
+        file_info_Lablel.place(anchor=tk.NW)
+    else:
+        file_info_Lablel.place_forget()
 
 # Import of configuration parameters
 source_dir = 'C:\\Users\\glauc\\Desktop\\sel'
@@ -93,12 +101,18 @@ if True:  # So that code folding is possible
     def mostra_imagem(file):
         if file in loaded_files:
             imagem_mostrada['image'] = loaded_files[file]  # Mostrar a imagem selecionada na tela
-            metadata = [str(exif(file, tags)) for tags in   ["FocalLength",   "FNumber", "ExposureTime", "ISOSpeedRatings", "ExposureBiasValue", "ExposureProgram", "DateTime", "LensModel"]]
-            metadata_label =                                ["FocalLength: ", "FNumber: ", "ExposureTime: 1/", "ISO-", "Exposure Bias: ", "Bracketing: ", "DateTime: ", "Lens: "]
-            metadata = [x + y for x, y in zip(metadata_label, metadata)]
-            file_info_text.set(metadata) #Set the metadata for fileinfo Label
-            file_info_text.set('\n'.join(metadata))
-            print((metadata))
+            if file_info_visible:
+                file_info_Lablel.place(anchor=tk.NW)
+                metadata = [str(exif(file, tags)) for tags in
+                            ["FocalLength", "FNumber", "ExposureTime", "ISOSpeedRatings", "ExposureBiasValue",
+                             "ExposureProgram", "DateTime", "LensModel"]]
+                metadata_label = ["FocalLength: ", "FNumber: ", "ExposureTime: 1/", "ISO-", "Exposure Bias: ",
+                                  "Bracketing: ", "DateTime: ", "Lens: "]
+                metadata = [x + y for x, y in zip(metadata_label, metadata)]
+                file_info_text.set(metadata)  # Set the metadata for fileinfo Label
+                file_info_text.set('\n'.join(metadata))
+            else:
+                file_info_Lablel.place_forget()
             root.update()                                   #Aparently this is not ideal performance, but is already an improvement
             root.title("Eu amo o Bernado - "+str(files[index_atual])+" - "+str(index_atual+1)+" of "+str(len(files)))
 
@@ -170,6 +184,7 @@ root.bind("<Left>",     left)
 root.bind("6",          right)
 root.bind("4",          left)
 root.bind("8",          copiar)
+root.bind("i", toggle_file_info)
 
 try:
     for file in files[0:2]:  # Carrega so as 2 primeiras imagens, pra ir mais rapido
@@ -206,4 +221,3 @@ print("fim")
 #overlay camera settings
 #Implement option to hide bracketing
 # Sort based on exposure?
-# Todoo
