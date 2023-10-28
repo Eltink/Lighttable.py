@@ -57,7 +57,7 @@ else: source_dir = filedialog.askdirectory()
 destination_dir = get_destination_dir(source_dir)
 
 # Define valid image file extensions
-valid_extensions = [".JPG", ".jpg", ".jpeg", ".png", ".gif", ".ARW"]
+valid_extensions = [".JPG", ".jpg", ".jpeg", ".png", ".gif"] #, ".ARW"
 t0 = time.time()
 
 # Original list of files with valid extensions
@@ -184,7 +184,7 @@ def copiar(event):
         copia_arquivo(source_dir, filepath, destination_dir)
         copied_files[filepath] = True
         if get_exif(filepath, "ExposureMode") != 2: # Isnt bracketed
-            feedback_label_text.set(f"Copied {index_atual}")
+            feedback_label_text.set(f"Copied {index_atual+1}")
 
         elif get_exif(filepath, "ExposureMode") == 2: # Is bracketed
             feedback_label_text.set(f"Copied median {filepath}")
@@ -202,7 +202,7 @@ def copiar(event):
                 feedback_label_text.set(feedback_label_text.get() + " and lighter")
             else: feedback_label_text.set(feedback_label_text.get() + " but no lighter")
 
-            if feedback_label_text.get().endswith("and darker and lighter"): feedback_label_text.set(f"Copied 3x {index_atual}")
+            if feedback_label_text.get().endswith("and darker and lighter"): feedback_label_text.set(f"Copied 3x {index_atual+1}")
 
         right(event)
 
@@ -420,6 +420,8 @@ root.bind("L", load_some_images)
 
 root.mainloop()
 print("fim")
+
+if not os.listdir(destination_dir): os.rmdir(destination_dir)
 
 # TODO fix copiar to handle incomplete brackets without throuwing an error
 # todo if sel is empty delete
