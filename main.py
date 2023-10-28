@@ -9,13 +9,11 @@ import imageio # Necessary to read .arw files
 import threading
 import subprocess
 
-# trying to implement to open subfolders
-
 import brackets_sorter
 from copiador_de_arquivo import copia_arquivo
 from tools import *
 
-debugging = 1
+debugging = 0
 timing = 0
 show_all = 0
 include_sub_dirs = 1
@@ -66,22 +64,17 @@ t0 = time.time()
 # if not include_sub_dirs: files = [file for file in os.listdir(source_dir) if any(file.endswith(ext) for ext in valid_extensions)]
 # else: files = [os.path.join(root, filename) for root, _, filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions]
 
-#filepaths = ([os.path.join(root, filename) for root, _, filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions])
+# filepaths = ([os.path.join(root, filename) for root, _, filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions])
 
-#files = [os.path.join(root, filename) for  filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions]
+# files = [os.path.join(root, filename) for  filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions]
+
 filepaths = []
-print (source_dir)
 for path, subdir, files in os.walk(source_dir):
-   for name in files:
-       print(name)
-       if any(name.endswith(ext) for ext in valid_extensions):
-        filepaths.append(os.path.join(path,name))
-
-print("filepaths", filepaths)
-
+    for file in files:
+        if any(file.endswith(ext) for ext in valid_extensions):
+            filepaths.append(os.path.join(path, file))
 
 # Refining files
-filepaths = [os.path.join(source_dir, file) for file in files]
 t1 = time.time()
 
 if show_all: showable = [1]*len(filepaths)
@@ -89,33 +82,32 @@ else:        showable = is_it_showable(filepaths)  # Example: [1, 1, 0, 1]
 
 if timing: print("Time to calculate showable: ", time.time()-t1)
 files = [file for file, is_showable in zip(files, showable) if is_showable]
+filepaths = [filepath for filepath, is_showable in zip(filepaths, showable) if is_showable]
 if timing: print("Time to calculate files: ", time.time()-t0)
 
 loaded_files = dict.fromkeys(filepaths, None)
 copied_files = {}
 
 # Load an image and perform necessary adjustments
-def carrega(filename):
-    if loaded_files.get(filename) is not None:
-        print(f"Atempted to load file {filename} again")
+def carrega(filepath):
+    if loaded_files.get(filepath) is not None:
+        print(f"Atempted to load file {filepath} again")
         return #Experimental line, not sure if it works or not...
-    print("Loading file: ", filename)
     # if loaded_files.get(files[index]) is not None: return # This could work also, but i dont get it completely
-    file_path = os.path.join(source_dir, filename)
 
-    if filename.endswith('.ARW'):
+    if filepath.endswith('.ARW'):
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
-        raw = rawpy.imread(file_path)
+        raw = rawpy.imread(filepath)
         rgb = raw.postprocess() # This is a slow function
         img = Image.fromarray(rgb)
-    else: img = Image.open(file_path)
+    else: img = Image.open(filepath)
 
     try:
-        Orientation = get_exif(file_path, "Orientation")
+        Orientation = get_exif(filepath, "Orientation")
         if   Orientation == 8: img = img.rotate(90,  expand=True)
         elif Orientation == 3: img = img.rotate(180, expand=True)
         elif Orientation == 6: img = img.rotate(270, expand=True)
-    except Exception  as e: print(f"An error occurred on loading file {filename}: {e}")
+    except Exception  as e: print(f"An error occurred on loading file {filepath}: {e}")
 
     aspect_ratio = img.width / img.height
     screen_width = root.winfo_screenwidth()
@@ -127,7 +119,7 @@ def carrega(filename):
     else:
         img = img.resize((screen_width, int(screen_width / aspect_ratio)), Image.LANCZOS)
 
-    loaded_files[filename] = ImageTk.PhotoImage(img) # Converting the image from PIL to TK format
+    loaded_files[filepath] = ImageTk.PhotoImage(img) # Converting the image from PIL to TK format
     # return ImageTk.PhotoImage(img)
     # Legacy version
 
@@ -151,12 +143,12 @@ def get_image_metadata(file):
         print(f"An error occurred getting metadata from file {file}: {e}")
         return None
 
-def mostra_imagem(file):
-    if file in loaded_files:
-        imagem_mostrada['image'] = loaded_files[file]
+def mostra_imagem(filepath):
+    if filepath in loaded_files:
+        imagem_mostrada['image'] = loaded_files[filepath]
         if file_info_visible:
             file_info_label.place(anchor=tk.NW)
-            metadata = get_image_metadata(file)
+            metadata = get_image_metadata(filepath)
             file_info_text.set(metadata)
         else: file_info_label.place_forget()
         # feedback_label.place_forget()
@@ -165,9 +157,9 @@ def mostra_imagem(file):
         # No idea why i put this pack here, but without it its working
 
         root.update()
-        root.title("Eu amo o Bernado - " + str(files[index_atual]) + " - " + str(index_atual + 1) + " of " + str(len(files)))
+        root.title("Eu amo o Bernado - " + str(filepaths[index_atual]) + " - " + str(index_atual + 1) + " of " + str(len(filepaths)))
     else: # Debugging
-        print(f"File {file} was not found in loaded_files.Info for debugging follows:")
+        print(f"File {filepath} was not found in loaded_files.Info for debugging follows:")
         print(f"index_atual: {index_atual}")
         print(f"files[index_atual]: {files[index_atual]}")
         print(f"loaded_files[files[index_atual]] was not found")
@@ -185,18 +177,17 @@ def mostra_imagem(file):
 
 # Event handlers
 def copiar(event):
-    filename = files[index_atual]
-    if filename in copied_files:
+    filepath = filepaths[index_atual]
+    if filepath in copied_files:
         feedback_label_text.set("Already copied")
     else:
-        filepath = os.path.join(source_dir, filename)
-        copia_arquivo(source_dir, filename, destination_dir)
-        copied_files[filename] = True
+        copia_arquivo(source_dir, filepath, destination_dir)
+        copied_files[filepath] = True
         if get_exif(filepath, "ExposureMode") != 2: # Isnt bracketed
-            feedback_label_text.set(f"Copied {filename}")
+            feedback_label_text.set(f"Copied {index_atual}")
 
         elif get_exif(filepath, "ExposureMode") == 2: # Is bracketed
-            feedback_label_text.set(f"Copied median {filename}")
+            feedback_label_text.set(f"Copied median {filepath}")
             EV = get_exif(filepath, "ExposureBiasValue")
 
             darker = file_navigator(filepath, -1)
@@ -211,29 +202,29 @@ def copiar(event):
                 feedback_label_text.set(feedback_label_text.get() + " and lighter")
             else: feedback_label_text.set(feedback_label_text.get() + " but no lighter")
 
-            if feedback_label_text.get().endswith("and darker and lighter"): feedback_label_text.set(f"Copied 3x {filename}")
+            if feedback_label_text.get().endswith("and darker and lighter"): feedback_label_text.set(f"Copied 3x {index_atual}")
 
         right(event)
 
 def proxima(event):
     global index_atual
-    index_atual = (index_atual + 1) % len(files)
-    mostra_imagem(files[index_atual])
+    index_atual = (index_atual + 1) % len(filepaths)
+    mostra_imagem(filepaths[index_atual])
 
 def anterior(event):
     global index_atual
-    index_atual = (index_atual - 1) % len(files)
-    mostra_imagem(files[index_atual])
+    index_atual = (index_atual - 1) % len(filepaths)
+    mostra_imagem(filepaths[index_atual])
 
 def right(event):
     proxima(event)
-    if loaded_files.get(files[(index_atual + 1) % len(files)]) is None:
-        carrega(files[index_atual + 1])
+    if loaded_files.get(filepaths[(index_atual + 1) % len(filepaths)]) is None:
+        carrega(filepaths[index_atual + 1])
 
 def left(event):
     anterior(event)
-    if loaded_files.get(files[(index_atual - 1) % len(files)]) is None:
-        carrega(files[index_atual - 1])
+    if loaded_files.get(filepaths[(index_atual - 1) % len(filepaths)]) is None:
+        carrega(filepaths[index_atual - 1])
 
 def exit_feedback(event):
     tk.messagebox.showinfo("Copying Complete", "Image copying process completed.\nPress Enter to close")
@@ -250,27 +241,27 @@ root.bind("i", toggle_file_info)
 root.bind("<Control-q>", exit_feedback)
 
 t0 = time.time()
-carrega(files[0])
+carrega(filepaths[0])
 if timing: print("Time to load first image: ", time.time()-t0)
 t1 = time.time()
-mostra_imagem(files[0])
+mostra_imagem(filepaths[0])
 if timing: print("Time to show first image: ", time.time()-t1)
 t2 = time.time()
-carrega(files[1])
+carrega(filepaths[1])
 if timing: print("Time to load second image: ", time.time()-t2)
 if timing: print("Time to boot program: ", time.time()-t0)
 
 
 def open_in_explorer(event):
-    subprocess.Popen(['explorer', source_dir])
+    subprocess.Popen(['explorer', filepaths[index_atual]])
 root.bind("<Control-e>", open_in_explorer)  # Binds Control+e to open in Explorer
 open_in_explorer_button = tk.Button(root, text="Open in Explorer", command=open_in_explorer)
 open_in_explorer_button.pack()
 
 
 def open_with_photos(_=None): # I dont understand whats the difference between this and event as an argument
-    if index_atual >= 0 and index_atual < len(files):
-        file_path = os.path.join(source_dir, files[index_atual])
+    if index_atual >= 0 and index_atual < len(filepaths):
+        file_path = os.path.join(source_dir, filepaths[index_atual])
         os.system(f'start "" "{file_path}"')  # Opens the file with the default associated program
     else:
         # Handle the case where index_atual is out of bounds
@@ -293,8 +284,8 @@ def start_slideshow(event=None):  # Add the event parameter with a default value
     def slideshow_thread_func():
         global index_atual
         while slideshow_running:
-            index_atual = (index_atual + 1) % len(files)
-            mostra_imagem(files[index_atual])
+            index_atual = (index_atual + 1) % len(filepaths)
+            mostra_imagem(filepaths[index_atual])
             root.update()  # Update the GUI
             time.sleep(0.2)  # Delay between images (in seconds)
 
@@ -346,18 +337,18 @@ def load_all_images(event=None):
         progress_label = tk.Label(progress_window, text="Loading images... Please wait.")
         progress_label.pack(padx=10, pady=10)  # Adjust the values as needed
 
-        total_images = len(files)
+        total_images = len(filepaths)
         start_time = time.time()
 
         def loading_thread_func():
             global index_atual, loading_in_progress, loading_thread, loaded_count
-            for i in range(loaded_count, len(files)):
+            for i in range(loaded_count, len(filepaths)):
                 if stop_loading_event.is_set() or not loading_in_progress:
                     # If the event is set or loading was manually stopped, interrupt the loading process
                     break
 
-                if loaded_files.get(files[i]) is None:
-                    carrega(files[i])
+                if loaded_files.get(filepaths[i]) is None:
+                    carrega(filepaths[i])
                     loaded_count += 1
 
                 # Calculate the progress
@@ -405,14 +396,14 @@ def load_some_images(event=None):
     progress_label.pack(padx=80, pady=20)  # Adjust the values as needed
 
     # total_images = min(num_images, len(files))  # Limit to available files
-    total_images = len(files)  # Limit to available files
+    total_images = len(filepaths)  # Limit to available files
     start_time = time.time()
     loaded_count = 0
 
     while (time.time() - start_time) < allowed_time:
-        i = (index_atual + loaded_count) % len(files)  # Calculate the index based on index_atual
-        if loaded_files.get(files[i]) is None:
-            carrega(files[i])
+        i = (index_atual + loaded_count) % len(filepaths)  # Calculate the index based on index_atual
+        if loaded_files.get(filepaths[i]) is None:
+            carrega(filepaths[i])
             loaded_count += 1
         else:
             loaded_count += 1 # This is needed to increase i. A more meaningfull implementation is needed
@@ -430,5 +421,5 @@ root.bind("L", load_some_images)
 root.mainloop()
 print("fim")
 
-# TODO check copiar, its not working with brackets
+# TODO fix copiar to handle incomplete brackets without throuwing an error
 # todo if sel is empty delete
