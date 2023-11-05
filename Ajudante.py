@@ -4,165 +4,165 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 
+
+class Ajudante():
+    def __init__(self,debugging=False):
+        self.root = tk.Tk()
+        self.root.title("Image Copy Tool")
+        self.root.geometry("400x400")
+        self.root.eval('tk::PlaceWindow . center')
+
+        self.base_de_dados_label = tk.Label(self.root, text="Base de Dados Folder:")
+        self.base_de_dados_label.pack()
+        self.base_de_dados_entry = tk.Entry(self.root)
+        self.base_de_dados_entry.pack()
+        self.base_de_dados_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.base_de_dados_entry))
+        self.base_de_dados_button.pack()
+
+        self.selecao_label = tk.Label(self.root, text="Selecao Folder:")
+        self.selecao_label.pack()
+        self.selecao_entry = tk.Entry(self.root)
+        self.selecao_entry.pack()
+        self.selecao_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.selecao_entry))
+        self.selecao_button.pack()
+
+        self.formato_quero_label = tk.Label(self.root, text="Formato Quero (Default: .ARW):")
+        self.formato_quero_label.pack()
+        self.formato_quero_entry = tk.Entry(self.root)
+        self.formato_quero_entry.pack()
+
+        self.formato_tenho_label = tk.Label(self.root, text="Formato Tenho (Default: .JPG):")
+        self.formato_tenho_label.pack()
+        self.formato_tenho_entry = tk.Entry(self.root)
+        self.formato_tenho_entry.pack()
+
+        self.start_button = tk.Button(self.root, text="Start Copying", command=self.start_copying)
+        self.start_button.pack()
+
+        self.progress_var_label = tk.Label(self.root, text="Progress bar")
+        self.progress_var_label.pack()
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(self.root, variable=self.progress_var, maximum=100)
+        self.progress_bar.pack()
+
+        self.feedback_text = tk.StringVar()
+        self.feedback_label = tk.Label(self.root, textvariable=self.feedback_text)
+        self.feedback_label.pack()
+
+        # if debugging: start_copying()
+        self.copied_images = []
+        self.copied_files= 0
+        self.source_filepaths = []
+        self.total_files = 0
+        self.selection_images = []
+
+        self.database = []
+        self.wanted_files = []
+        self.missing_images = []
+
+        self.debugging = debugging
+
+        # start GUI
+        self.root.mainloop()
+
+    def get_user_input(self):
+        formato_quero = ".ARW"
+        formato_tenho = ".JPG"
+        if self.debugging:
+            self.database = r"C:\Users\glauc\Desktop\testdir\DB"
+            selecao =r"C:\Users\glauc\Desktop\testdir\sel"
+        else:
+            self.database = self.base_de_dados_entry.get()
+            selecao = self.selecao_entry.get()
+            formato_quero = self.formato_quero_entry.get()
+            formato_tenho = self.formato_tenho_entry.get()
+            if not formato_quero: formato_quero = ".ARW"
+            if not formato_tenho: formato_tenho = ".JPG"
+
+        self.dest_dir= os.path.join(selecao, "copiadas")
+
+        if not os.path.exists(self.dest_dir): os.makedirs(self.dest_dir)
+        self.wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for
+                             file in files]
+
+    def start_copying(self):
+        #global copied_images, copied_files, source_filepaths, missing_images, total_files, selection_images
+        self.get_user_input()
+        self.progress_var.set(0)
+
+        self.copied_images       = set(os.listdir(self.dest_dir))
+        self.selection_images    = set(self.wanted_files)
+        self.total_files         = len(self.wanted_files)
+
+        self.file_finder()
+
+    def file_finder(self):
+        self.copied_images = set(os.listdir(self.dest_dir))
+        #global total_files, copied_files
+
+
+        # TODO hardcode first pass giving as database an /ARW folder, then ignoring any /JPG and *sel
+
+        for path, subdir, files in os.walk(self.database):
+            for file in files:
+                if file in self.wanted_files:
+                    source_filepath = os.path.join(path, file)
+                    self.file_copier(source_filepath)
+                    self.root.update()
+
+        if self.missing_images:
+            self.feedback_text.set(f"Some images were not found in the base folder.\n"
+                              f"Copied images: {self.copied_files}\n"
+                              f"Missing files: {len(self.missing_images)}\n"
+                              f"Failure rate: {100 * len(self.missing_images) / self.total_files}%")
+        else:
+            self.feedback_text.set(f"Copied {self.copied_files} of {self.total_files} images")
+
+        if self.debugging: return
+        # Show missing images and completion messages in the GUI
+        self.messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
+                                                f"Copied {self.copied_files} of {self.total_files} images")
+        if self.missing_images: self.messagebox.showinfo("Missing Images", str(self.missing_images))
+
+        if self.missing_images:
+            text = "Some images were not found in the base de dados.\n"
+            text += f"Copied images: {(self.copied_files)}\n"
+            text += f"Missing files: {len(self.missing_images)}\n"
+            text += f"Fail rate: {100 * len(self.missing_images) / (self.total_files)}%\n"
+            self.feedback_text.set(text)
+
+        self.messagebox.showinfo("nao_encontradas", str(self.missing_images))
+
+        self.messagebox.showinfo("Copying Complete", "Image copying process completed.")
+
+    def file_copier(self, source_filepath):
+        try:
+            shutil.copy(source_filepath, self.dest_dir)
+            self.copied_images.add(source_filepath)
+            self.source_filepaths.append(source_filepath)
+            self.copied_files += 1
+
+            progress = int((self.copied_files / self.total_files) * 100)
+            self.progress_var.set(progress)
+
+            self.feedback_text.set(f"Copied {self.copied_files} of {self.total_files} images")
+            self.root.update()
+
+        except Exception as e:
+            self.missing_images.append(source_filepath)
+            self.feedback_text.set(self.feedback_text.get() + f"File {source_filepath} is wanted but could not be copied from {source_filepath} with error {e}.\n")
+            print(e)
+
+
 #
-debugging = 1
-root= None
-source_filepaths= []
-# root = None
-# root = tk.Tk()
 
-copied_images = 0
-selection_images = 0
-missing_images = []
-total_files = 0
-copied_files = 0
-
-def file_finder(database, dest_dir, wanted_files, progress_var, feedback_text, root):
-    imagens_copiadas = set(os.listdir(dest_dir))
-    global total_files,copied_files
-
-    missing_images = []
-
-
-    # TODO hardcode first pass giving as database an /ARW folder, then ignoring any /JPG and *sel
-
-    for path, subdir, files in os.walk(database):
-        for file in files:
-            if file in wanted_files:
-                source_filepath = os.path.join(path, file)
-                file_copier(source_filepath, dest_dir, progress_var, feedback_text)
-                root.update()
-
-    if missing_images:
-        feedback_text.set(f"Some images were not found in the base folder.\n"
-                          f"Copied images: {copied_files}\n"
-                          f"Missing files: {len(missing_images)}\n"
-                          f"Failure rate: {100 * len(missing_images) / total_files}%")
-    else:
-        feedback_text.set(f"Copied {copied_files} of {total_files} images")
-
-    if debugging: return
-    # Show missing images and completion messages in the GUI
-    messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
-                                            f"Copied {copied_files} of {total_files} images")
-    if missing_images: messagebox.showinfo("Missing Images", str(missing_images))
-
-    if missing_images:
-        text = "Some images were not found in the base de dados.\n"
-        text += f"Copied images: {(copied_files)}\n"
-        text += f"Missing files: {len(missing_images)}\n"
-        text += f"Fail rate: {100*len(missing_images)/(total_files)}%\n"
-        feedback_text.set(text)
-
-    messagebox.showinfo("nao_encontradas", str(missing_images))
-
-    messagebox.showinfo("Copying Complete", "Image copying process completed.")
-
-
-def file_copier(source_filepath, dest_dir, progress_var, feedback_text):
-    global root
-    global copied_images, copied_files, source_filepaths, missing_images, total_files
-    try:
-        shutil.copy(source_filepath, dest_dir)
-        copied_images.add(source_filepath)
-        source_filepaths.append(source_filepath)
-        copied_files += 1
-
-        progress = int((copied_files / total_files) * 100)
-        progress_var.set(progress)
-
-        feedback_text.set(f"Copied {copied_files} of {total_files} images")
-        root.update()
-
-    except Exception as e:
-        missing_images.append(source_filepath)
-        feedback_text.set(feedback_text.get()+f"File {source_filepath} is wanted but could not be copied from {source_filepath} with error {e}.\n")
-        print(e)
 
 
 def browse_folder(entry):
-    folder_path = filedialog.askdirectory()
-    entry.delete(0, tk.END)
-    entry.insert(0, folder_path)
+   folder_path = filedialog.askdirectory()
+   entry.delete(0, tk.END)
+   entry.insert(0, folder_path)
 
 
-def main():
-    def start_copying():
-        global copied_images, copied_files, source_filepaths, missing_images, total_files, selection_images
-        base_de_dados = base_de_dados_entry.get()
-        selecao = selecao_entry.get()
-        formato_quero = formato_quero_entry.get()
-        formato_tenho = formato_tenho_entry.get()
 
-        if not formato_quero: formato_quero = ".ARW"
-        if not formato_tenho: formato_tenho = ".JPG"
-        if debugging:
-            if not base_de_dados: base_de_dados = r"C:\Users\glauc\Desktop\testdir\DB"
-            if not selecao:       selecao = r"C:\Users\glauc\Desktop\testdir\sel"
-
-        destino = os.path.join(selecao, "copiadas")
-
-        if not os.path.exists(destino): os.makedirs(destino)
-
-        progress_var.set(0)
-
-        wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
-
-        copied_images       = set(os.listdir(destino))
-        selection_images    = set(wanted_files)
-        missing_images      = []
-        total_files         = len(wanted_files)
-        copied_files        = 0
-
-        file_finder(base_de_dados, destino, wanted_files, progress_var, feedback_text, root)
-
-        # global root
-    global root
-    root = tk.Tk()
-    root.title("Image Copy Tool")
-    root.geometry("400x400")
-    root.eval('tk::PlaceWindow . center')
-
-    base_de_dados_label = tk.Label(root, text="Base de Dados Folder:")
-    base_de_dados_label.pack()
-    base_de_dados_entry = tk.Entry(root)
-    base_de_dados_entry.pack()
-    base_de_dados_button = tk.Button(root, text="Browse", command=lambda: browse_folder(base_de_dados_entry))
-    base_de_dados_button.pack()
-
-    selecao_label = tk.Label(root, text="Selecao Folder:")
-    selecao_label.pack()
-    selecao_entry = tk.Entry(root)
-    selecao_entry.pack()
-    selecao_button = tk.Button(root, text="Browse", command=lambda: browse_folder(selecao_entry))
-    selecao_button.pack()
-
-    formato_quero_label = tk.Label(root, text="Formato Quero (Default: .ARW):")
-    formato_quero_label.pack()
-    formato_quero_entry = tk.Entry(root)
-    formato_quero_entry.pack()
-
-    formato_tenho_label = tk.Label(root, text="Formato Tenho (Default: .JPG):")
-    formato_tenho_label.pack()
-    formato_tenho_entry = tk.Entry(root)
-    formato_tenho_entry.pack()
-
-    start_button = tk.Button(root, text="Start Copying", command=start_copying)
-    start_button.pack()
-
-    progress_var_label = tk.Label(root, text="Progress bar")
-    progress_var_label.pack()
-    progress_var = tk.DoubleVar()
-    progress_bar = ttk.Progressbar(root, variable=progress_var, maximum=100)
-    progress_bar.pack()
-
-    feedback_text = tk.StringVar()
-    feedback_label = tk.Label(root, textvariable=feedback_text)
-    feedback_label.pack()
-
-    # if debugging: start_copying()
-
-    root.mainloop()
-
-if __name__ == "__main__":
-    main()
+ajudante = Ajudante(debugging=True)
