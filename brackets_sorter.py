@@ -1,6 +1,8 @@
 import os
 from PIL import Image
 from PIL.ExifTags import TAGS
+from copiador_de_arquivo import copia_arquivo
+import itertools
 
 # Currently working, defines functions to be called by other programs
 
@@ -52,3 +54,15 @@ def is_bracketed(filename):
 def ExposureBiasValue(filename):
     img = Image.open(filename)
     return float(exif(filename, "ExposureBiasValue"))
+
+
+source_dir = r"E:\Selecionar\2022_12_31_RAW - FOZ\JPG from base de dados\sel"
+unbracketeds, medians, outliers = process_files(source_dir)
+print(f"Medians {len(medians)}, outliers/2 {len(outliers)/2}")
+dst = os.path.join(source_dir, "HDR")
+if not os.path.exists(dst): os.makedirs(dst)
+for file in itertools.chain(medians, outliers):
+    try: copia_arquivo(source_dir, file, dst)
+    except Exception as e: print(e)
+
+# TODO implement GUI
