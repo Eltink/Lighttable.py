@@ -142,7 +142,7 @@ def file_navigator(file_path, steps):
 
 
 debugging = 0
-timing = 1
+timing = 0
 
 def is_it_showable(filepaths):
     gabarito = [0, 1, 1, 1, 0, 1, 0, 1, 0]
