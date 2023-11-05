@@ -5,6 +5,7 @@ from tkinter import filedialog, messagebox
 from tkinter import ttk
 
 # TODO its working but its horrible, start again defining functions and arguments
+# Todo drow down menu loop around images = true
 #
 debugging = 0
 # root = None
@@ -107,12 +108,13 @@ def main():
         feedback_text.set("Copying images...")
 
         wanted_files = [file.replace(formato_tenho, formato_quero) for file in os.listdir(selecao)]
+        wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
 
-        copied_images = set(os.listdir(destino))
-        selection_images = set(wanted_files)
-        missing_images = []
-        total_files = len(wanted_files)
-        copied_files = 0
+        copied_images       = set(os.listdir(destino))
+        selection_images    = set(wanted_files)
+        missing_images      = []
+        total_files         = len(wanted_files)
+        copied_files        = 0
 
         file_finder(base_de_dados, destino, wanted_files, progress_var, feedback_text, root)
 
