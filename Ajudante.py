@@ -4,10 +4,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 
-# TODO its working but its horrible, start again defining functions and arguments
-# Todo drow down menu loop around images = true
 #
-debugging = 0
+debugging = 1
+root= None
+source_filepaths= []
 # root = None
 # root = tk.Tk()
 
@@ -19,11 +19,10 @@ copied_files = 0
 
 def file_finder(database, dest_dir, wanted_files, progress_var, feedback_text, root):
     imagens_copiadas = set(os.listdir(dest_dir))
+    global total_files,copied_files
 
     missing_images = []
 
-    total_files = 0
-    copied_files = 0
 
     # TODO hardcode first pass giving as database an /ARW folder, then ignoring any /JPG and *sel
 
@@ -65,7 +64,7 @@ def file_copier(source_filepath, dest_dir, progress_var, feedback_text):
     global copied_images, copied_files, source_filepaths, missing_images, total_files
     try:
         shutil.copy(source_filepath, dest_dir)
-        copied_images.append(source_filepath)
+        copied_images.add(source_filepath)
         source_filepaths.append(source_filepath)
         copied_files += 1
 
@@ -78,6 +77,7 @@ def file_copier(source_filepath, dest_dir, progress_var, feedback_text):
     except Exception as e:
         missing_images.append(source_filepath)
         feedback_text.set(feedback_text.get()+f"File {source_filepath} is wanted but could not be copied from {source_filepath} with error {e}.\n")
+        print(e)
 
 
 def browse_folder(entry):
@@ -97,17 +97,15 @@ def main():
         if not formato_quero: formato_quero = ".ARW"
         if not formato_tenho: formato_tenho = ".JPG"
         if debugging:
-            if not base_de_dados: base_de_dados = r"E:\Selecionar\2022_01_22_Festas parte 208"
-            if not selecao:       selecao = r"E:\Selecionar\2022_01_22_Festas parte 208\JPG sel"
+            if not base_de_dados: base_de_dados = r"C:\Users\glauc\Desktop\testdir\DB"
+            if not selecao:       selecao = r"C:\Users\glauc\Desktop\testdir\sel"
 
         destino = os.path.join(selecao, "copiadas")
 
         if not os.path.exists(destino): os.makedirs(destino)
 
         progress_var.set(0)
-        feedback_text.set("Copying images...")
 
-        wanted_files = [file.replace(formato_tenho, formato_quero) for file in os.listdir(selecao)]
         wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
 
         copied_images       = set(os.listdir(destino))
@@ -119,6 +117,7 @@ def main():
         file_finder(base_de_dados, destino, wanted_files, progress_var, feedback_text, root)
 
         # global root
+    global root
     root = tk.Tk()
     root.title("Image Copy Tool")
     root.geometry("400x400")
@@ -161,7 +160,7 @@ def main():
     feedback_label = tk.Label(root, textvariable=feedback_text)
     feedback_label.pack()
 
-    if debugging: start_copying()
+    # if debugging: start_copying()
 
     root.mainloop()
 
