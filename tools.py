@@ -142,7 +142,7 @@ def file_navigator(file_path, steps):
 
 
 debugging = 0
-timing = 0
+timing = 1
 
 def is_it_showable(filepaths):
     gabarito = [0, 1, 1, 1, 0, 1, 0, 1, 0]
@@ -159,259 +159,269 @@ def is_it_showable(filepaths):
     # print("valor", (get_exif(filepaths[0], "ExposureBiasValue")))
     # print(f" a/b: {a.numerator}/{a.denominator}")
     EV = [float(get_exif(filepath, "ExposureBiasValue")) if get_exif(filepath, "ExposureBiasValue") is not None else 0 for filepath in filepaths]
-    trace = [None] * len_filepaths
-    if timing: print(f"Time to load metadata lists: {time.time()-t0} sec")
 
-    if debugging: print("bracketed", bracketed)
-    if debugging: print("EV", EV)
+    def v2():
+        trace = [None] * len_filepaths
+        if timing: print(f"Time to load metadata lists: {time.time()-t0} sec")
 
-    # Initialize a list to store temporary values for mostra[i+1]
-    temp_mostra = [None] * len_filepaths
-    # v2 implementation
-    if True:
-        if debugging: print("\nv2 implementation")
+        if debugging: print("bracketed", bracketed)
+        if debugging: print("EV", EV)
+
+        # Initialize a list to store temporary values for mostra[i+1]
+        temp_mostra = [None] * len_filepaths
+        # v2 implementation
+        if True:
+            if debugging: print("\nv2 implementation")
+            for i in range(len_filepaths):
+                if not bracketed[i]: # From now on, all i are bracketed
+                    mostra[i] = 1
+                    trace[i] = "a"
+                elif i == 0:  #
+                    if bracketed[i + 1]:
+                        mostra[i] = 0  # It's the first of a series of brackets
+                        trace[i] = "b"
+                elif i == len_filepaths - 1:
+                    if not bracketed[i - 1]:
+                        mostra[i] = 1  # It's an isolated bracketed
+                        trace[i] = "c"
+                    if not mostra[i - 1]:
+                        mostra[i] = 1  # It's an incomplete bracket or an unknown case (5 bracket)
+                        trace[i] = "d"
+
+            if debugging: print("mostra", mostra)
+            # if debugging: print("sum(mostra)", sum(mostra))
+            if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
+
+    def vChatGPT():
+        trace = [None] * len_filepaths
+        temp_mostra = [None] * len_filepaths
+        # ChatGPT implementation
+        if True:
+            if debugging: print("\nChatGPT implementation")
+            for i in range(len_filepaths):
+                if not bracketed[i]:
+                    mostra[i] = 1
+                    trace[i] = "a"
+                # From now on, all i are bracketed
+                elif i == 0:
+                    if bracketed[i + 1]:
+                        mostra[i] = 0
+                        trace[i] = "b"
+                elif i == len_filepaths - 1:
+                    if not bracketed[i - 1]:
+                        mostra[i] = 1
+                        trace[i] = "c"
+                    elif not mostra[i - 1]:
+                        mostra[i] = 1
+                        trace[i] = "d"
+                elif not bracketed[i - 1] and not bracketed[i + 1]:
+                    mostra[i] = 1
+                    trace[i] = "e"
+                elif not bracketed[i - 1] and bracketed[i + 1]:
+                    mostra[i] = 0
+                    trace[i] = "f"
+                elif EV[i] == round((EV[i - 1] + EV[i + 1]) / 2, 1):
+                    mostra[i] = 1
+                    temp_mostra[i + 1] = 0  # Store temporary value for mostra[i+1]
+                    trace[i] = "h"
+                elif EV[i - 1] > EV[i] and EV[i] < EV[i + 1]:
+                    mostra[i] = 0
+                    trace[i] = "k"
+                elif abs((EV[i + 1] - EV[i]) - (EV[i] - EV[i - 1])) > threshold_EV:
+                    mostra[i] = 0
+                    trace[i] = "j"
+                elif EV[i - 1] < EV[i] and EV[i] > EV[i + 1] and abs((EV[i + 1] - EV[i]) + (EV[i] - EV[i - 1])) <= threshold_EV:
+                    mostra[i] = 1
+                    trace[i] = "i"
+                else:
+                    mostra[i] = "?"
+                    trace[i] = "l"
+                    print(f"\nCouldn't classify image i = {i}")
+                    print(f"B: {[bracketed[i - 2], bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
+                    print(f"EV: {[EV[i - 2], EV[i - 1], EV[i], EV[i + 1]]}")
+                    print(f"M: {[mostra[i - 2], mostra[i - 1], mostra[i], mostra[i + 1]]}")
+                    mostra[i] = 1
+
+            # Update mostra with the temporary values
+            for i in range(len_filepaths):
+                if temp_mostra[i] is not None:
+                    mostra[i] = temp_mostra[i]
+                    trace[i] = "t"
+
+            # if debugging: print("bracketed", bracketed)
+            # if debugging: print("EV", EV)
+            if debugging: print(trace)
+            if debugging: print("mostra", mostra)
+            if debugging: print("sum(mostra)", sum(mostra))
+            if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
+
+    def vGlauco():
+        # Glauco implementation
+        if True:
+            trace = [None] * len_filepaths
+            if debugging: print("\nGlauco implementation")
+            for i in range(len_filepaths):
+                if not bracketed[i]:
+                    mostra[i] = 1
+                    trace[i] = "a"
+                # From now on, all i are bracketed
+                elif i == 0:  #
+                    if bracketed[i + 1]:
+                        mostra[i] = 0  # It's the first of a series of brackets
+                        trace[i] = "b"
+                elif i == len_filepaths - 1:
+                    if not bracketed[i - 1]:
+                        mostra[i] = 1  # It's an isolated bracketed
+                        trace[i] = "c"
+                    if not mostra[i - 1]:
+                        mostra[i] = 1  # It's an incomplete bracket or an unknown case (5 bracket)
+                        trace[i] = "d"
+                elif not bracketed[i - 1] and not bracketed[i + 1]:
+                    mostra[i] = 1  # It's an isolated bracketed
+                    trace[i] = "e"
+                elif not bracketed[i - 1] and bracketed[i + 1]:
+                    mostra[i] = 0  # It's the first on a bracketing
+                    trace[i] = "f"
+                # elif bracketed[i - 1] and not bracketed[i + 1]: #Seems to be clasifying wrong the end of a complete bracket
+                #     mostra[i] = 1  # It's the second on a incomplete bracketing
+                #     trace[i] = "g"
+                elif EV[i] == round((EV[i-1] + EV[i+1])/2,1):
+                    mostra[i] = 1  # It's the middle of a bracketing. TODO extend for 5 brackets
+                    trace[i] = "h"
+                elif EV[i - 1] > EV[i] and EV[i] < EV[i + 1]:
+                    mostra[i] = 0 # Its a local minimum: starting of a bracket
+                    trace[i] = "k"
+                elif abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1])) > threshold_EV:  # Its the end of a complete bracket
+                    # print(f"EV[i-1] {EV[i-1]} EV[i] {EV[i]} EV[i+1] {EV[i+1]}")
+                    # print("abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1]))", abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1])))
+                    mostra[i] = 0
+                    trace[i] = "j"
+                elif EV[i - 1] < EV[i] and EV[i] > EV[i + 1] and abs((EV[i+1]-EV[i]) + (EV[i] - EV[i-1])) <= threshold_EV:  # Center of an incomplete bracket
+                    mostra[i] = 1
+                    trace[i] = "i"
+                else:
+                    mostra[i] = "?"
+                    trace[i] = "l"
+                    print(f"\nCouldn't classify image i = {i}")
+                    print(f"B: {[bracketed[i - 2], bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
+                    print(f"EV: {[EV[i - 2], EV[i - 1], EV[i], EV[i + 1]]}")
+                    print(f"M: {[mostra[i - 2], mostra[i - 1], mostra[i], mostra[i + 1]]}")
+                    mostra[i] = 1
+            # if debugging: print("bracketed", bracketed)
+            # if debugging: print("EV", EV)
+            if debugging: print(trace)
+            if debugging: print("mostra", mostra)
+            if debugging: print("sum(mostra)", sum(mostra))
+            if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
+
+    def vAndressa():
+        # Andressa implementation
+        if True:
+            if debugging: print("\nAndressa implementation")
+            for i in range(len_filepaths):
+                if bracketed[i] == False: # If its not bracketed, always show
+                    mostra[i] = 1
+                    trace = "b"
+                # elif bracketed[i] == True: #because its always either True or False, we can simplify it
+                else:
+                    if i == 0 and bracketed[i] and bracketed[i+1]: # If first two are bracketed, no need to show first one
+                        mostra[i] = 0
+                    elif i == 0 or i == len_filepaths - 1: # If im at the borders of the list, return 1 (false positives are better)
+                        mostra[i] = 1
+                        trace = "c"
+                    else: # Current image is bracketed
+                        if EV[i] == round((EV[i-1] + EV[i+1])/2,1): # If it's the average
+                            mostra[i] = 1
+                            trace = "d"
+                        elif not bracketed[i-1] and EV[i+1]>EV[i]:
+                            mostra[i]= 0
+                            trace = "e"
+                        elif mostra[i-1] and i!=1 and bracketed[i-1]: # because current is bracketed
+                            mostra[i] = 0
+                            trace = "h"
+                        elif bracketed[i-1] and not mostra[i-1] and EV[i]>EV[i-1]:
+                            mostra[i]=1
+                            trace = "i"
+                        elif not bracketed[i+1] and abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1])) <= threshold_EV: # Case for incomplete brackets
+                            mostra[i] = 1
+                            trace = "f"
+                            print("This seemed to never be necessary. Please investigate.")
+                            print("Filename: ", filepaths[i])
+                        else:
+                            mostra[i] = 0
+                            trace = "g"
+            if debugging: print(trace)
+            if debugging: print("mostra", mostra)
+            if debugging: print("sum(mostra)", sum(mostra))
+            if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
+
+    def vMedia():
+        if debugging: print("\nMedia implementation")
+        mostra_edges = [None] * len_filepaths
+        mostra_complete = [None] * len_filepaths
+        mostra_incomplete = [None] * len_filepaths
+        trace = [None] * len_filepaths
+
         for i in range(len_filepaths):
-            if not bracketed[i]: # From now on, all i are bracketed
-                mostra[i] = 1
-                trace[i] = "a"
-            elif i == 0:  #
+            if i == 0:  #
                 if bracketed[i + 1]:
-                    mostra[i] = 0  # It's the first of a series of brackets
-                    trace[i] = "b"
+                    mostra_edges[i] = 0  # It's the first of a series of brackets
             elif i == len_filepaths - 1:
                 if not bracketed[i - 1]:
-                    mostra[i] = 1  # It's an isolated bracketed
-                    trace[i] = "c"
+                    mostra_edges[i] = 1  # It's an isolated bracketed
                 if not mostra[i - 1]:
-                    mostra[i] = 1  # It's an incomplete bracket or an unknown case (5 bracket)
-                    trace[i] = "d"
+                    mostra_edges[i] = 1  # It's an incomplete bracket or an unknown case (5 bracket)
+            # Real start of the code
+            elif bracketed[i]:
+                # From now on, all i are bracketed
+                if EV[i] == round((EV[i-1] + EV[i+1])/2, 1):  # todo extend media 5
+                    mostra_complete[i - 1] = 0
+                    mostra_complete[i]     = 1
+                    mostra_complete[i + 1] = 0
+                elif EV[i - 1] > EV[i] and EV[i] < EV[i + 1]:  # Local minimum
+                    mostra_incomplete[i] = 0
+                    mostra_incomplete[i + 1] = 1
+                    trace[i] = "i"
+                else: # Images are a B=110, so M=1; or local maximum on an incomplete bracket, M=1
+                    mostra_incomplete[i] = 1
+                    # trace[i] = "j"
+                    # print(f"Couldnt classify image i={i}")
+                    # print(f"B: {[bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
+                    # print(f"EV: {[EV[i - 1], EV[i], EV[i + 1]]}")
+                    # print(f"M: {[mostra[i - 1], mostra[i], mostra[i + 1]]}")
 
-        if debugging: print("mostra", mostra)
-        # if debugging: print("sum(mostra)", sum(mostra))
-        if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
-
-    # ChatGPT implementation
-    if True:
-        if debugging: print("\nChatGPT implementation")
         for i in range(len_filepaths):
             if not bracketed[i]:
                 mostra[i] = 1
-                trace[i] = "a"
-            # From now on, all i are bracketed
-            elif i == 0:
-                if bracketed[i + 1]:
-                    mostra[i] = 0
-                    trace[i] = "b"
-            elif i == len_filepaths - 1:
-                if not bracketed[i - 1]:
-                    mostra[i] = 1
-                    trace[i] = "c"
-                elif not mostra[i - 1]:
-                    mostra[i] = 1
-                    trace[i] = "d"
-            elif not bracketed[i - 1] and not bracketed[i + 1]:
-                mostra[i] = 1
-                trace[i] = "e"
-            elif not bracketed[i - 1] and bracketed[i + 1]:
-                mostra[i] = 0
-                trace[i] = "f"
-            elif EV[i] == round((EV[i - 1] + EV[i + 1]) / 2, 1):
-                mostra[i] = 1
-                temp_mostra[i + 1] = 0  # Store temporary value for mostra[i+1]
-                trace[i] = "h"
-            elif EV[i - 1] > EV[i] and EV[i] < EV[i + 1]:
-                mostra[i] = 0
-                trace[i] = "k"
-            elif abs((EV[i + 1] - EV[i]) - (EV[i] - EV[i - 1])) > threshold_EV:
-                mostra[i] = 0
-                trace[i] = "j"
-            elif EV[i - 1] < EV[i] and EV[i] > EV[i + 1] and abs((EV[i + 1] - EV[i]) + (EV[i] - EV[i - 1])) <= threshold_EV:
-                mostra[i] = 1
-                trace[i] = "i"
+            elif mostra_complete[i] is not None:
+                mostra[i] = mostra_complete[i]
+            elif mostra_edges[i] is not None:
+                mostra[i] = mostra_edges[i]
+            elif mostra_incomplete[i] is not None:
+                mostra[i] = mostra_incomplete[i]
             else:
-                mostra[i] = "?"
-                trace[i] = "l"
-                print(f"\nCouldn't classify image i = {i}")
-                print(f"B: {[bracketed[i - 2], bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
-                print(f"EV: {[EV[i - 2], EV[i - 1], EV[i], EV[i + 1]]}")
-                print(f"M: {[mostra[i - 2], mostra[i - 1], mostra[i], mostra[i + 1]]}")
-                mostra[i] = 1
+                print(f"Didnt fall in any case: i={i}")
+                print(f"B: {[bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
+                print(f"EV: {[EV[i - 1], EV[i], EV[i + 1]]}")
+                print(f"M: {[mostra[i - 1], mostra[i], mostra[i + 1]]}")
 
-        # Update mostra with the temporary values
-        for i in range(len_filepaths):
-            if temp_mostra[i] is not None:
-                mostra[i] = temp_mostra[i]
-                trace[i] = "t"
-
-        # if debugging: print("bracketed", bracketed)
-        # if debugging: print("EV", EV)
-        if debugging: print(trace)
+        # if debugging: print(trace)
         if debugging: print("mostra", mostra)
         if debugging: print("sum(mostra)", sum(mostra))
         if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
-
-    # Glauco implementation
-    if True:
-        if debugging: print("\nGlauco implementation")
-        for i in range(len_filepaths):
-            if not bracketed[i]:
-                mostra[i] = 1
-                trace[i] = "a"
-            # From now on, all i are bracketed
-            elif i == 0:  #
-                if bracketed[i + 1]:
-                    mostra[i] = 0  # It's the first of a series of brackets
-                    trace[i] = "b"
-            elif i == len_filepaths - 1:
-                if not bracketed[i - 1]:
-                    mostra[i] = 1  # It's an isolated bracketed
-                    trace[i] = "c"
-                if not mostra[i - 1]:
-                    mostra[i] = 1  # It's an incomplete bracket or an unknown case (5 bracket)
-                    trace[i] = "d"
-            elif not bracketed[i - 1] and not bracketed[i + 1]:
-                mostra[i] = 1  # It's an isolated bracketed
-                trace[i] = "e"
-            elif not bracketed[i - 1] and bracketed[i + 1]:
-                mostra[i] = 0  # It's the first on a bracketing
-                trace[i] = "f"
-            # elif bracketed[i - 1] and not bracketed[i + 1]: #Seems to be clasifying wrong the end of a complete bracket
-            #     mostra[i] = 1  # It's the second on a incomplete bracketing
-            #     trace[i] = "g"
-            elif EV[i] == round((EV[i-1] + EV[i+1])/2,1):
-                mostra[i] = 1  # It's the middle of a bracketing. TODO extend for 5 brackets
-                trace[i] = "h"
-            elif EV[i - 1] > EV[i] and EV[i] < EV[i + 1]:
-                mostra[i] = 0 # Its a local minimum: starting of a bracket
-                trace[i] = "k"
-            elif abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1])) > threshold_EV:  # Its the end of a complete bracket
-                # print(f"EV[i-1] {EV[i-1]} EV[i] {EV[i]} EV[i+1] {EV[i+1]}")
-                # print("abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1]))", abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1])))
-                mostra[i] = 0
-                trace[i] = "j"
-            elif EV[i - 1] < EV[i] and EV[i] > EV[i + 1] and abs((EV[i+1]-EV[i]) + (EV[i] - EV[i-1])) <= threshold_EV:  # Center of an incomplete bracket
-                mostra[i] = 1
-                trace[i] = "i"
-            else:
-                mostra[i] = "?"
-                trace[i] = "l"
-                print(f"\nCouldn't classify image i = {i}")
-                print(f"B: {[bracketed[i - 2], bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
-                print(f"EV: {[EV[i - 2], EV[i - 1], EV[i], EV[i + 1]]}")
-                print(f"M: {[mostra[i - 2], mostra[i - 1], mostra[i], mostra[i + 1]]}")
-                mostra[i] = 1
-        # if debugging: print("bracketed", bracketed)
-        # if debugging: print("EV", EV)
-        if debugging: print(trace)
-        if debugging: print("mostra", mostra)
-        if debugging: print("sum(mostra)", sum(mostra))
-        if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
-
-    # Andressa implementation
-    if True:
-        if debugging: print("\nAndressa implementation")
-        for i in range(len_filepaths):
-            if bracketed[i] == False: # If its not bracketed, always show
-                mostra[i] = 1
-                trace = "b"
-            # elif bracketed[i] == True: #because its always either True or False, we can simplify it
-            else:
-                if i == 0 and bracketed[i] and bracketed[i+1]: # If first two are bracketed, no need to show first one
-                    mostra[i] = 0
-                elif i == 0 or i == len_filepaths - 1: # If im at the borders of the list, return 1 (false positives are better)
-                    mostra[i] = 1
-                    trace = "c"
-                else: # Current image is bracketed
-                    if EV[i] == round((EV[i-1] + EV[i+1])/2,1): # If it's the average
-                        mostra[i] = 1
-                        trace = "d"
-                    elif not bracketed[i-1] and EV[i+1]>EV[i]:
-                        mostra[i]= 0
-                        trace = "e"
-                    elif mostra[i-1] and i!=1 and bracketed[i-1]: # because current is bracketed
-                        mostra[i] = 0
-                        trace = "h"
-                    elif bracketed[i-1] and not mostra[i-1] and EV[i]>EV[i-1]:
-                        mostra[i]=1
-                        trace = "i"
-                    elif not bracketed[i+1] and abs((EV[i+1]-EV[i]) - (EV[i] - EV[i-1])) <= threshold_EV: # Case for incomplete brackets
-                        mostra[i] = 1
-                        trace = "f"
-                        print("This seemed to never be necessary. Please investigate.")
-                        print("Filename: ", filepaths[i])
-                    else:
-                        mostra[i] = 0
-                        trace = "g"
-        if debugging: print(trace)
-        if debugging: print("mostra", mostra)
-        if debugging: print("sum(mostra)", sum(mostra))
-        if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
-
-    if debugging: print("\nMedia implementation")
-    mostra_edges = [None] * len_filepaths
-    mostra_complete = [None] * len_filepaths
-    mostra_incomplete = [None] * len_filepaths
-    trace = [None] * len_filepaths
-
-    for i in range(len_filepaths):
-        if i == 0:  #
-            if bracketed[i + 1]:
-                mostra_edges[i] = 0  # It's the first of a series of brackets
-        elif i == len_filepaths - 1:
-            if not bracketed[i - 1]:
-                mostra_edges[i] = 1  # It's an isolated bracketed
-            if not mostra[i - 1]:
-                mostra_edges[i] = 1  # It's an incomplete bracket or an unknown case (5 bracket)
-        # Real start of the code
-        elif bracketed[i]:
-            # From now on, all i are bracketed
-            if EV[i] == round((EV[i-1] + EV[i+1])/2, 1):  # todo extend media 5
-                mostra_complete[i - 1] = 0
-                mostra_complete[i]     = 1
-                mostra_complete[i + 1] = 0
-            elif EV[i - 1] > EV[i] and EV[i] < EV[i + 1]:  # Local minimum
-                mostra_incomplete[i] = 0
-                mostra_incomplete[i + 1] = 1
-                trace[i] = "i"
-            else: # Images are a B=110, so M=1; or local maximum on an incomplete bracket, M=1
-                mostra_incomplete[i] = 1
-                # trace[i] = "j"
-                # print(f"Couldnt classify image i={i}")
-                # print(f"B: {[bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
-                # print(f"EV: {[EV[i - 1], EV[i], EV[i + 1]]}")
-                # print(f"M: {[mostra[i - 1], mostra[i], mostra[i + 1]]}")
-
-    for i in range(len_filepaths):
-        if not bracketed[i]:
-            mostra[i] = 1
-        elif mostra_complete[i] is not None:
-            mostra[i] = mostra_complete[i]
-        elif mostra_edges[i] is not None:
-            mostra[i] = mostra_edges[i]
-        elif mostra_incomplete[i] is not None:
-            mostra[i] = mostra_incomplete[i]
-        else:
-            print(f"Didnt fall in any case: i={i}")
-            print(f"B: {[bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
-            print(f"EV: {[EV[i - 1], EV[i], EV[i + 1]]}")
-            print(f"M: {[mostra[i - 1], mostra[i], mostra[i + 1]]}")
-
-    # if debugging: print(trace)
-    if debugging: print("mostra", mostra)
-    if debugging: print("sum(mostra)", sum(mostra))
-    if debugging: print(f"There are {sum(1 for i, j in zip(mostra, gabarito) if i != j)} different elements.")
-    if debugging:
-        for i, (m, g) in enumerate(zip(mostra, gabarito)):
-            # zip aggregates vectors element-wise into tuples.
-            # Enumerate loops over the elements of an iterable, keeping track of the current index
-            # e.g. [(0, (a, A)), (1, (b, B)), (2, (c, C))...]
-            if m != g:
-                print(f"Output differs from gabarito at index {i}: Expected={g}, Got={m}")
-                if i not in [0, len_filepaths - 1]:
-                    print(f"B: {[bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
-                    print(f"EV: {[EV[i - 1], EV[i], EV[i + 1]]}")
-                    print(f"M: {[mostra[i - 1], mostra[i], mostra[i + 1]]}")
-    return mostra
+        if debugging:
+            for i, (m, g) in enumerate(zip(mostra, gabarito)):
+                # zip aggregates vectors element-wise into tuples.
+                # Enumerate loops over the elements of an iterable, keeping track of the current index
+                # e.g. [(0, (a, A)), (1, (b, B)), (2, (c, C))...]
+                if m != g:
+                    print(f"Output differs from gabarito at index {i}: Expected={g}, Got={m}")
+                    if i not in [0, len_filepaths - 1]:
+                        print(f"B: {[bracketed[i - 1], bracketed[i], bracketed[i + 1]]}")
+                        print(f"EV: {[EV[i - 1], EV[i], EV[i + 1]]}")
+                        print(f"M: {[mostra[i - 1], mostra[i], mostra[i + 1]]}")
+        return mostra
+    return vMedia()
 
 def get_destination_dir(source_dir):
     # Get the parent directory of the source directory
