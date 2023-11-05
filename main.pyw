@@ -429,4 +429,5 @@ print("fim")
 if not os.listdir(destination_dir): os.rmdir(destination_dir)
 
 # TODO fix copiar to handle incomplete brackets without throuwing an error
-# todo if sel is empty delete
+# TODO if sel is empty delete DONE!
+# Todo drow down menu loop around images = true
