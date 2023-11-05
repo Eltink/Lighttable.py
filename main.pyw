@@ -86,7 +86,7 @@ if timing: print("Time to calculate showable: ", time.time()-t1)
 files = [file for file, is_showable in zip(files, showable) if is_showable]
 # Todo check source size before running
 filepaths = [filepath for filepath, is_showable in zip(filepaths, showable) if is_showable] # Is this running twice?
-if timing: print("Time to calculate files: ", time.time()-t0)
+if timing: print("Time to trim files by showable: ", time.time()-t0)
 
 loaded_files = dict.fromkeys(filepaths, None)
 copied_files = {}
