@@ -50,15 +50,15 @@ class Ajudante():
         self.feedback_label.pack()
 
         # if debugging: start_copying()
-        self.copied_images = []
-        self.copied_files= 0
-        self.source_filepaths = []
-        self.total_files = 0
-        self.selection_images = []
+        self.copied_images      = []
+        self.copied_files       = 0
+        self.source_filepaths   = []
+        self.total_files        = 0
+        self.selection_images   = []
 
-        self.database = []
-        self.wanted_files = []
-        self.missing_images = []
+        self.database           = []
+        self.wanted_files       = []
+        self.missing_images     = []
 
         self.debugging = debugging
 
@@ -70,10 +70,10 @@ class Ajudante():
         formato_tenho = ".JPG"
         if self.debugging:
             self.database = r"C:\Users\glauc\Desktop\testdir\DB"
-            selecao =r"C:\Users\glauc\Desktop\testdir\sel"
+            selecao       =  r"C:\Users\glauc\Desktop\testdir\sel"
         else:
             self.database = self.base_de_dados_entry.get()
-            selecao = self.selecao_entry.get()
+            selecao       = self.selecao_entry.get()
             formato_quero = self.formato_quero_entry.get()
             formato_tenho = self.formato_tenho_entry.get()
             if not formato_quero: formato_quero = ".ARW"
@@ -86,7 +86,6 @@ class Ajudante():
                              file in files]
 
     def start_copying(self):
-        #global copied_images, copied_files, source_filepaths, missing_images, total_files, selection_images
         self.get_user_input()
         self.progress_var.set(0)
 
@@ -98,8 +97,6 @@ class Ajudante():
 
     def file_finder(self):
         self.copied_images = set(os.listdir(self.dest_dir))
-        #global total_files, copied_files
-
 
         # TODO hardcode first pass giving as database an /ARW folder, then ignoring any /JPG and *sel
 
@@ -120,9 +117,9 @@ class Ajudante():
 
         if self.debugging: return
         # Show missing images and completion messages in the GUI
-        self.messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
+        tk.messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
                                                 f"Copied {self.copied_files} of {self.total_files} images")
-        if self.missing_images: self.messagebox.showinfo("Missing Images", str(self.missing_images))
+        if self.missing_images: tk.messagebox.showinfo("Missing Images", str(self.missing_images))
 
         if self.missing_images:
             text = "Some images were not found in the base de dados.\n"
@@ -131,9 +128,9 @@ class Ajudante():
             text += f"Fail rate: {100 * len(self.missing_images) / (self.total_files)}%\n"
             self.feedback_text.set(text)
 
-        self.messagebox.showinfo("nao_encontradas", str(self.missing_images))
+        tk.messagebox.showinfo("nao_encontradas", str(self.missing_images))
 
-        self.messagebox.showinfo("Copying Complete", "Image copying process completed.")
+        tk.messagebox.showinfo("Copying Complete", "Image copying process completed.")
 
     def file_copier(self, source_filepath):
         try:
@@ -154,15 +151,10 @@ class Ajudante():
             print(e)
 
 
-#
-
-
-
 def browse_folder(entry):
    folder_path = filedialog.askdirectory()
    entry.delete(0, tk.END)
    entry.insert(0, folder_path)
 
 
-
-ajudante = Ajudante(debugging=True)
+ajudante = Ajudante(debugging=False)
