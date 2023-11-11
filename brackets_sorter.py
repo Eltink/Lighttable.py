@@ -56,13 +56,14 @@ def ExposureBiasValue(filename):
     return float(exif(filename, "ExposureBiasValue"))
 
 
-source_dir = r"E:\Selecionar\2022_12_31_RAW - FOZ\JPG from base de dados\sel"
-unbracketeds, medians, outliers = process_files(source_dir)
-print(f"Medians {len(medians)}, outliers/2 {len(outliers)/2}")
-dst = os.path.join(source_dir, "HDR")
-if not os.path.exists(dst): os.makedirs(dst)
-for file in itertools.chain(medians, outliers):
-    try: copia_arquivo(source_dir, file, dst)
-    except Exception as e: print(e)
+if __name__ == "__main__":
+    source_dir = r"E:\Selecionar\2022_12_31_RAW - FOZ\JPG from base de dados\sel"
+    unbracketeds, medians, outliers = process_files(source_dir)
+    print(f"Medians {len(medians)}, outliers/2 {len(outliers)/2}")
+    dst = os.path.join(source_dir, "HDR")
+    if not os.path.exists(dst): os.makedirs(dst)
+    for file in itertools.chain(medians, outliers):
+        try: copia_arquivo(source_dir, file, dst)
+        except Exception as e: print(e)
 
 # TODO implement GUI
