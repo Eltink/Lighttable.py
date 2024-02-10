@@ -15,7 +15,7 @@ from tools import *
 
 debugging = 0
 timing = 0
-show_all = 0
+show_all = 1
 include_sub_dirs = 1
 
 # Initialize the GUI
@@ -54,7 +54,12 @@ def toggle_file_info(event):
 
 
 # Get the source directory from user input
-if debugging: source_dir = r"C:\Users\glauc\Desktop\kjaf"
+clipboard_getter = tk.Tk()
+clipboard = clipboard_getter.clipboard_get()
+clipboard_getter.destroy()
+
+if os.path.exists(clipboard): source_dir = clipboard
+elif debugging: source_dir = r"C:\Users\glauc\Desktop\kjaf"
 else: source_dir = filedialog.askdirectory()
 destination_dir = get_destination_dir(source_dir)
 
@@ -197,7 +202,8 @@ def copiar(event):
 
             darker = file_navigator(filepath, -1)
             if round(get_exif(darker, "ExposureBiasValue"), 1) in [EV - 3, EV - 2, EV - 1]:
-                copia_arquivo(source_dir, darker, destination_dir) # How is this working, if source and darker are paths?
+                copia_arquivo(source_dir, darker,
+                              destination_dir)  # How is this working, if source and darker are paths?
                 feedback_label_text.set(feedback_label_text.get()+" and darker")
             else: feedback_label_text.set(feedback_label_text.get()+" but no darker")
 
@@ -292,7 +298,7 @@ def start_slideshow(event=None):  # Add the event parameter with a default value
             index_atual = (index_atual + 1) % len(filepaths)
             mostra_imagem(filepaths[index_atual])
             root.update()  # Update the GUI
-            time.sleep(0.2)  # Delay between images (in seconds)
+            time.sleep(5)  # Delay between images (in seconds)
 
     if slideshow_running:
         # Start the slideshow thread if it's not already running
@@ -431,3 +437,4 @@ if not os.listdir(destination_dir): os.rmdir(destination_dir)
 # TODO fix copiar to handle incomplete brackets without throuwing an error
 # TODO if sel is empty delete DONE!
 # Todo drow down menu loop around images = true
+# TODO subtractive mode: move to trash can
