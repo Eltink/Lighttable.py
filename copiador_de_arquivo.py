@@ -1,7 +1,7 @@
 import os
 import shutil
 
-def copia_arquivo(src, filename, dst, filetype='jpg', delay=10):
+def copia_arquivo(source_dir, filename, destination_dir, filetype='jpg', delay=10):
     """Copies a file from a source location to a destination location.
 
     Parameters:
@@ -14,13 +14,13 @@ def copia_arquivo(src, filename, dst, filetype='jpg', delay=10):
     Returns: None
     """
 
-    caminho_imagem_base_de_dados = os.path.join(src, filename)  # complete file location
+    caminho_imagem_base_de_dados = os.path.join(source_dir, filename)  # complete file location
     # testing if all necessary paths exists
-    for test_case in [src, dst, caminho_imagem_base_de_dados]:
+    for test_case in [source_dir, destination_dir, caminho_imagem_base_de_dados]:
         if not os.path.exists(test_case):
             print(f"{test_case} doesnt exist")  # f: replace any {} with that variable.
             return
 
-    shutil.copy(caminho_imagem_base_de_dados, dst)
+    shutil.copy(caminho_imagem_base_de_dados, destination_dir)
 
     return

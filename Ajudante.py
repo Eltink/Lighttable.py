@@ -5,7 +5,7 @@ from tkinter import filedialog, messagebox
 from tkinter import ttk
 
 
-class Ajudante():
+class Ajudante:
     def __init__(self,debugging=False):
         self.root = tk.Tk()
         self.root.title("Image Copy Tool")
@@ -79,11 +79,10 @@ class Ajudante():
             if not formato_quero: formato_quero = ".ARW"
             if not formato_tenho: formato_tenho = ".JPG"
 
-        self.dest_dir= os.path.join(selecao, "copiadas")
+        self.dest_dir = os.path.join(selecao, "copiadas")
 
         if not os.path.exists(self.dest_dir): os.makedirs(self.dest_dir)
-        self.wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for
-                             file in files]
+        self.wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
 
     def start_copying(self):
         self.get_user_input()
@@ -158,3 +157,4 @@ def browse_folder(entry):
 
 
 ajudante = Ajudante(debugging=False)
+# TODO false feedback info: number of missing images, filenames

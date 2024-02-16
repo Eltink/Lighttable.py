@@ -57,13 +57,22 @@ def ExposureBiasValue(filename):
 
 
 if __name__ == "__main__":
-    source_dir = r"E:\Selecionar\2022_12_31_RAW - FOZ\JPG from base de dados\sel"
+    source_dir = r"E:\Selecionar\2023_03_15_MtRR\128\sel\JPGs"
     unbracketeds, medians, outliers = process_files(source_dir)
-    print(f"Medians {len(medians)}, outliers/2 {len(outliers)/2}")
-    dst = os.path.join(source_dir, "HDR")
-    if not os.path.exists(dst): os.makedirs(dst)
+    print(f"Unbracketed: {unbracketeds} \nMedians {len(medians)} \nOutliers/2 {len(outliers)/2}")
+
+    HDR_dir = os.path.join(source_dir, "non-HDR")
+    if not os.path.exists(HDR_dir): os.makedirs(HDR_dir)
+    for file in unbracketeds:
+        try:
+            copia_arquivo(source_dir, file, HDR_dir)
+        except Exception as e: print(e)
+
+    nonHDR_dir = os.path.join(source_dir, "HDR")
+    if not os.path.exists(nonHDR_dir): os.makedirs(nonHDR_dir)
     for file in itertools.chain(medians, outliers):
-        try: copia_arquivo(source_dir, file, dst)
+        try:
+            copia_arquivo(source_dir, file, nonHDR_dir)
         except Exception as e: print(e)
 
 # TODO implement GUI
