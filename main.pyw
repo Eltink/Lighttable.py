@@ -13,9 +13,9 @@ import brackets_sorter
 from copiador_de_arquivo import copia_arquivo
 from tools import *
 
-debugging = 0
+debugging = 1
 timing = 0
-show_all = 1
+show_all = 0
 include_sub_dirs = 1
 
 # Initialize the GUI
@@ -56,10 +56,11 @@ def toggle_file_info(event):
 # Get the source directory from user input
 clipboard_getter = tk.Tk()
 clipboard = clipboard_getter.clipboard_get()
+clipboard_getter.update_idletasks()
 clipboard_getter.destroy()
 
 if os.path.exists(clipboard): source_dir = clipboard
-elif debugging: source_dir = r"C:\Users\glauc\Desktop\kjaf"
+elif debugging: source_dir = r"C:\Users\glauc\Desktop\Foz_v0"
 else: source_dir = filedialog.askdirectory()
 destination_dir = get_destination_dir(source_dir)
 
@@ -241,6 +242,7 @@ def exit_feedback(event):
     tk.messagebox.showinfo("Copying Complete", "Image copying process completed.\nPress Enter to close")
     root.destroy()
 
+
 # Bind keys to event handlers
 root.bind("<Up>", copiar)
 root.bind("<Right>", right)
@@ -264,11 +266,12 @@ if timing: print("Time to boot program: ", time.time()-t0)
 
 
 def open_in_explorer(event):
-    subprocess.Popen(['explorer', filepaths[index_atual]])
+    run_arg = r'explorer /select, "' + filepaths[index_atual] + '"'
+    subprocess.run(run_arg)
 root.bind("<Control-e>", open_in_explorer)  # Binds Control+e to open in Explorer
 open_in_explorer_button = tk.Button(root, text="Open in Explorer", command=open_in_explorer)
 open_in_explorer_button.pack()
-
+# This is not working and i dont know why
 
 def open_with_photos(_=None): # I dont understand whats the difference between this and event as an argument
     if index_atual >= 0 and index_atual < len(filepaths):
@@ -433,8 +436,10 @@ root.mainloop()
 print("fim")
 
 if not os.listdir(destination_dir): os.rmdir(destination_dir)
+#Interestingly, this gets executed even if you Alt F4 the
 
 # TODO fix copiar to handle incomplete brackets without throuwing an error
 # TODO if sel is empty delete DONE!
 # Todo drow down menu loop around images = true
 # TODO subtractive mode: move to trash can
+# TODO implement some kind of undo
