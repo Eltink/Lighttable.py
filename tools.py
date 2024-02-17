@@ -2,7 +2,6 @@ import os
 from PIL import Image, ImageTk, ExifTags
 import rawpy # Necessary to read .arw files
 import time
-import re
 
 def get_exif(filepath, gettag): # New version, using filepath and reading only the necessary
     if filepath.endswith('.ARW'):
@@ -319,7 +318,7 @@ def is_it_showable(filepaths):
         if True:
             if debugging: print("\nAndressa implementation")
             for i in range(len_filepaths):
-                if bracketed[i] == False: # If its not bracketed, always show
+                if not bracketed[i]: # If it's not bracketed, always show
                     mostra[i] = 1
                     trace = "b"
                 # elif bracketed[i] == True: #because its always either True or False, we can simplify it
@@ -357,6 +356,7 @@ def is_it_showable(filepaths):
 
     def vMedia():
         if debugging: print("\nMedia implementation")
+        if "Adobe" in get_exif(filepaths[0], "Software"): return [True] * len_filepaths  # Else would be  ILCE-7M3
         mostra_edges = [None] * len_filepaths
         mostra_complete = [None] * len_filepaths
         mostra_incomplete = [None] * len_filepaths
