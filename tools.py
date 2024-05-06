@@ -8,7 +8,6 @@ def get_exif(filepath, gettag): # New version, using filepath and reading only t
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
         raw = rawpy.imread(filepath)
         rgb = raw.postprocess()
-
         img = Image.fromarray(rgb)
     else:
         img = Image.open(filepath)
@@ -17,8 +16,9 @@ def get_exif(filepath, gettag): # New version, using filepath and reading only t
         if exif_data is not None:
             for k, v in exif_data.items():
                 tag = ExifTags.TAGS.get(k)
-                if tag == gettag:
+                if tag == gettag and not v != v: # and if v is not NaN
                     return v
+        return None
     except (AttributeError, KeyError):
         return None
 
@@ -153,10 +153,13 @@ def is_it_showable(filepaths):
 
     t0 = time.time()
     bracketed = [1 if get_exif(filepath, "ExposureMode") == 2 else 0 for filepath in filepaths]
-    # a = get_exif(filepaths[0], "ExposureBiasValue")
-    # print("tipo", type(get_exif(filepaths[0], "ExposureBiasValue")))
-    # print("valor", (get_exif(filepaths[0], "ExposureBiasValue")))
-    # print(f" a/b: {a.numerator}/{a.denominator}")
+
+    # for counter in range(len(filepaths)):
+    #     print(f"\n Filepath: {filepaths[counter]}")
+    #     data = get_exif(filepaths[counter], "ExposureBiasValue")
+    #     print("tipo", type(data))
+    #     print("valor", data, "ExposureBiasValue")
+    #     print(f" a/b: {data.numerator}/{data.denominator}") # Fix me when function returns None istead of rational
     EV = [float(get_exif(filepath, "ExposureBiasValue")) if get_exif(filepath, "ExposureBiasValue") is not None else 0 for filepath in filepaths]
 
     def v2():
@@ -356,6 +359,7 @@ def is_it_showable(filepaths):
 
     def vMedia():
         if debugging: print("\nMedia implementation")
+        if get_exif(filepaths[0], "Software") is None: return [True] * len_filepaths # Cant compare str to None, fix me
         if "Adobe" in get_exif(filepaths[0], "Software"): return [True] * len_filepaths  # Else would be  ILCE-7M3
         mostra_edges = [None] * len_filepaths
         mostra_complete = [None] * len_filepaths

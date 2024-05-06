@@ -8,12 +8,13 @@ import rawpy # Necessary to read .arw files
 import imageio # Necessary to read .arw files
 import threading
 import subprocess
+import Ajudante
 
 import brackets_sorter
 from copiador_de_arquivo import copia_arquivo
 from tools import *
 
-debugging = 1
+debugging = 0
 timing = 0
 show_all = 0
 include_sub_dirs = 1
@@ -65,7 +66,7 @@ else: source_dir = filedialog.askdirectory()
 destination_dir = get_destination_dir(source_dir)
 
 # Define valid image file extensions
-valid_extensions = [".JPG", ".jpg", ".jpeg", ".png", ".gif"] #, ".ARW"
+valid_extensions = [".JPG", ".jpg", ".jpeg", ".png"] #, ".ARW" testar se jgep e png funcionam
 t0 = time.time()
 
 # Original list of files with valid extensions
@@ -85,6 +86,7 @@ for path, subdir, files in os.walk(source_dir):
 # Refining files
 t1 = time.time()
 
+if len(filepaths) == 0:  tk.messagebox.showinfo("Folder error", "No valid images were found")
 if show_all: showable = [1]*len(filepaths)
 else:        showable = is_it_showable(filepaths)  # Example: [1, 1, 0, 1]
 
@@ -238,10 +240,37 @@ def left(event):
     if loaded_files.get(filepaths[(index_atual - 1) % len(filepaths)]) is None:
         carrega(filepaths[index_atual - 1])
 
-def exit_feedback(event):
-    tk.messagebox.showinfo("Copying Complete", "Image copying process completed.\nPress Enter to close")
-    root.destroy()
 
+def exit_feedback(event):
+    if not copied_files:
+        root.destroy() # If no images were selected, just destroy without feedback info
+        return
+    def get_total_size(path):
+        total_size = 0
+        # Iterate over all items (files and directories) in the specified path
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            # If it's a file, add its size to the total size
+            if os.path.isfile(item_path):
+                total_size += os.path.getsize(item_path)
+            # If it's a directory, recursively call the function to get the total size of files within it
+            elif os.path.isdir(item_path):
+                total_size += get_total_size(item_path)
+        return total_size
+
+    source_size = get_total_size(source_dir) / (1024**3)
+    destination_size = get_total_size(destination_dir)/(1024**3)
+    tk.messagebox.showinfo("Copying Complete",
+                           f"Image copying process completed.\n"
+                           f"Copied files: {len(copied_files)}\n"
+                           f"Keep rate = {100*len(copied_files)/len(files):.2f}%\n"
+                           f"Total time = {time.time()-t0:.2f} seconds\n"
+                           f"Time per image = {len(files)/(time.time()-t0):.2f} Hz bzw FPS\n\n"
+                           f"Original - final = saving\n "
+                           f"{source_size:.0f} - {destination_size:.0f} = {(source_size - destination_size):.0f} GB\n\n"
+                           f"Press Enter to close")
+    root.destroy()
+# FIXME correct rounding for big or small numbers
 
 # Bind keys to event handlers
 root.bind("<Up>", copiar)
@@ -272,15 +301,11 @@ root.bind("<Control-e>", open_in_explorer)  # Binds Control+e to open in Explore
 open_in_explorer_button = tk.Button(root, text="Open in Explorer", command=open_in_explorer)
 open_in_explorer_button.pack()
 # This is not working and i dont know why
+# This is now working and i dont know how
 
 def open_with_photos(_=None): # I dont understand whats the difference between this and event as an argument
-    if index_atual >= 0 and index_atual < len(filepaths):
-        file_path = os.path.join(source_dir, filepaths[index_atual])
-        os.system(f'start "" "{file_path}"')  # Opens the file with the default associated program
-    else:
-        # Handle the case where index_atual is out of bounds
-        pass  # You can display an error message or take other appropriate action here
-
+    file_path = os.path.join(source_dir, filepaths[index_atual])
+    os.system(f'start "" "{file_path}"')  # Opens the file with the default associated program
 
 root.bind("<Control-r>", open_with_photos)  # Binds Control+r to open with Windows Photos
 
@@ -301,7 +326,7 @@ def start_slideshow(event=None):  # Add the event parameter with a default value
             index_atual = (index_atual + 1) % len(filepaths)
             mostra_imagem(filepaths[index_atual])
             root.update()  # Update the GUI
-            time.sleep(5)  # Delay between images (in seconds)
+            time.sleep(3)  # Delay between images (in seconds)
 
     if slideshow_running:
         # Start the slideshow thread if it's not already running
@@ -328,7 +353,6 @@ loading_in_progress = False
 loading_thread = None
 loaded_count = 0
 stop_loading_event = threading.Event()  # Event to signal the loading thread to stop
-
 
 def load_all_images(event=None):
     global index_atual, loading_in_progress, loading_thread, loaded_count
@@ -380,12 +404,12 @@ def load_all_images(event=None):
                     estimated_remaining_time = 0
 
                 if estimated_remaining_time < 60:
-                    estimated_remaining_time_text = f"Estimated Remaining Time: {estimated_remaining_time:.0f} seconds"
+                    estimated_remaining_time_text = f"Remaining: {estimated_remaining_time:.0f} seconds"
                 else:
-                    estimated_remaining_time_text = f"Estimated Remaining Time: {estimated_remaining_time/60:.1f} minutes"
+                    estimated_remaining_time_text = f"Remaining: {estimated_remaining_time/60:.1f} minutes"
 
                 progress_label.config(text=f"Progress: {progress:.2f}%\n"
-                                           f"Average Time per Image: {avg_time_per_image:.3f} seconds\n"
+                                           f"Time per Image: {avg_time_per_image:.3f} seconds\n"
                                            f"{estimated_remaining_time_text}") #f"Elapsed Time: {elapsed_time:.2f} seconds\n"
                 progress_window.update()
 
@@ -394,11 +418,7 @@ def load_all_images(event=None):
 
         loading_thread = threading.Thread(target=loading_thread_func)
         loading_thread.start()
-
-
-# Bind the "l" key to the load_all_images function
 root.bind("l", load_all_images)
-
 
 def load_some_images(event=None):
     global index_atual, loaded_files
@@ -429,8 +449,29 @@ def load_some_images(event=None):
                                     f"Loaded images: {loaded_count}\n")
         progress_window.update()
     progress_window.destroy()  # Close the progress window when loading is complete
-
 root.bind("L", load_some_images)
+
+def callAjudante(_=None): # I dont understand whats the difference between this and event as an argument
+    ajudante = Ajudante.Ajudante(debugging=False, enable_gui=False)
+
+    ajudante.database = os.path.dirname(os.path.dirname(destination_dir)) # database is grandparent dir of selection folder
+    selecao = destination_dir
+    ajudante.formato_quero = ".ARW"
+    ajudante.formato_tenho = ".JPG"
+
+    ajudante.dest_dir = os.path.join(selecao, "copiadas")
+
+    if not os.path.exists(ajudante.dest_dir): os.makedirs(ajudante.dest_dir)
+    ajudante.wanted_files = [file.replace(ajudante.formato_tenho, ajudante.formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
+
+    ajudante.copied_images       = set(os.listdir(ajudante.dest_dir))
+    ajudante.selection_images    = set(ajudante.wanted_files)
+    ajudante.total_files         = len(ajudante.wanted_files)
+
+    ajudante.file_finder()
+root.bind("<Control-s>", callAjudante)  # Binds Control+s to find arw associated with selecao
+# TODO implement feedback msgbox without GUI, fix console errors
+# TODO for one use case, copied just the first image from selecao
 
 root.mainloop()
 print("fim")

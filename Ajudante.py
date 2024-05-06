@@ -6,48 +6,49 @@ from tkinter import ttk
 
 
 class Ajudante:
-    def __init__(self,debugging=False):
-        self.root = tk.Tk()
-        self.root.title("Image Copy Tool")
-        self.root.geometry("400x400")
-        self.root.eval('tk::PlaceWindow . center')
+    def __init__(self, debugging=False, enable_gui=True):
+        if enable_gui:
+            self.root = tk.Tk()
+            self.root.title("Image Copy Tool")
+            self.root.geometry("400x400")
+            self.root.eval('tk::PlaceWindow . center')
 
-        self.base_de_dados_label = tk.Label(self.root, text="Base de Dados Folder:")
-        self.base_de_dados_label.pack()
-        self.base_de_dados_entry = tk.Entry(self.root)
-        self.base_de_dados_entry.pack()
-        self.base_de_dados_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.base_de_dados_entry))
-        self.base_de_dados_button.pack()
+            self.base_de_dados_label = tk.Label(self.root, text="Base de Dados Folder:")
+            self.base_de_dados_label.pack()
+            self.base_de_dados_entry = tk.Entry(self.root)
+            self.base_de_dados_entry.pack()
+            self.base_de_dados_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.base_de_dados_entry))
+            self.base_de_dados_button.pack()
 
-        self.selecao_label = tk.Label(self.root, text="Selecao Folder:")
-        self.selecao_label.pack()
-        self.selecao_entry = tk.Entry(self.root)
-        self.selecao_entry.pack()
-        self.selecao_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.selecao_entry))
-        self.selecao_button.pack()
+            self.selecao_label = tk.Label(self.root, text="Selecao Folder:")
+            self.selecao_label.pack()
+            self.selecao_entry = tk.Entry(self.root)
+            self.selecao_entry.pack()
+            self.selecao_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.selecao_entry))
+            self.selecao_button.pack()
 
-        self.formato_quero_label = tk.Label(self.root, text="Formato Quero (Default: .ARW):")
-        self.formato_quero_label.pack()
-        self.formato_quero_entry = tk.Entry(self.root)
-        self.formato_quero_entry.pack()
+            self.formato_quero_label = tk.Label(self.root, text="Formato Quero (Default: .ARW):")
+            self.formato_quero_label.pack()
+            self.formato_quero_entry = tk.Entry(self.root)
+            self.formato_quero_entry.pack()
 
-        self.formato_tenho_label = tk.Label(self.root, text="Formato Tenho (Default: .JPG):")
-        self.formato_tenho_label.pack()
-        self.formato_tenho_entry = tk.Entry(self.root)
-        self.formato_tenho_entry.pack()
+            self.formato_tenho_label = tk.Label(self.root, text="Formato Tenho (Default: .JPG):")
+            self.formato_tenho_label.pack()
+            self.formato_tenho_entry = tk.Entry(self.root)
+            self.formato_tenho_entry.pack()
 
-        self.start_button = tk.Button(self.root, text="Start Copying", command=self.start_copying)
-        self.start_button.pack()
+            self.start_button = tk.Button(self.root, text="Start Copying", command=self.start_copying)
+            self.start_button.pack()
 
-        self.progress_var_label = tk.Label(self.root, text="Progress bar")
-        self.progress_var_label.pack()
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(self.root, variable=self.progress_var, maximum=100)
-        self.progress_bar.pack()
+            self.progress_var_label = tk.Label(self.root, text="Progress bar")
+            self.progress_var_label.pack()
+            self.progress_var = tk.DoubleVar()
+            self.progress_bar = ttk.Progressbar(self.root, variable=self.progress_var, maximum=100)
+            self.progress_bar.pack()
 
-        self.feedback_text = tk.StringVar()
-        self.feedback_label = tk.Label(self.root, textvariable=self.feedback_text)
-        self.feedback_label.pack()
+            self.feedback_text = tk.StringVar()
+            self.feedback_label = tk.Label(self.root, textvariable=self.feedback_text)
+            self.feedback_label.pack()
 
         # if debugging: start_copying()
         self.copied_images      = []
@@ -63,7 +64,8 @@ class Ajudante:
         self.debugging = debugging
 
         # start GUI
-        self.root.mainloop()
+
+        if enable_gui: self.root.mainloop()
 
     def get_user_input(self):
         formato_quero = ".ARW"
@@ -122,14 +124,12 @@ class Ajudante:
 
         if self.missing_images:
             text = "Some images were not found in the base de dados.\n"
-            text += f"Copied images: {(self.copied_files)}\n"
+            text += f"Copied images: {self.copied_files}\n"
             text += f"Missing files: {len(self.missing_images)}\n"
-            text += f"Fail rate: {100 * len(self.missing_images) / (self.total_files)}%\n"
+            text += f"Fail rate: {100 * len(self.missing_images) / self.total_files}%\n"
             self.feedback_text.set(text)
 
         tk.messagebox.showinfo("nao_encontradas", str(self.missing_images))
-
-        tk.messagebox.showinfo("Copying Complete", "Image copying process completed.")
 
     def file_copier(self, source_filepath):
         try:
@@ -155,6 +155,7 @@ def browse_folder(entry):
    entry.delete(0, tk.END)
    entry.insert(0, folder_path)
 
+if __name__ == "__main__":
+    ajudante = Ajudante(debugging=False, enable_gui=True)
 
-ajudante = Ajudante(debugging=False)
 # TODO false feedback info: number of missing images, filenames
