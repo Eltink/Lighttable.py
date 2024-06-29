@@ -74,11 +74,12 @@ class Ajudante:
             self.database = r"C:\Users\glauc\Desktop\testdir\DB"
             selecao       =  r"C:\Users\glauc\Desktop\testdir\sel"
         else:
+            selecao = self.selecao_entry.get()
             self.database = self.base_de_dados_entry.get()
-            selecao       = self.selecao_entry.get()
+            if not self.database: self.database = os.path.dirname(selecao) # If no database is given, try with parent dir
             formato_quero = self.formato_quero_entry.get()
             formato_tenho = self.formato_tenho_entry.get()
-            if not formato_quero: formato_quero = ".ARW"
+            if not formato_quero: formato_quero = ".ARW" # Isnt this broken because of the start of the function?
             if not formato_tenho: formato_tenho = ".JPG"
 
         self.dest_dir = os.path.join(selecao, "copiadas")
