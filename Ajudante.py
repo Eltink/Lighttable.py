@@ -13,19 +13,19 @@ class Ajudante:
             self.root.geometry("400x400")
             self.root.eval('tk::PlaceWindow . center')
 
-            self.base_de_dados_label = tk.Label(self.root, text="Base de Dados Folder:")
-            self.base_de_dados_label.pack()
-            self.base_de_dados_entry = tk.Entry(self.root)
-            self.base_de_dados_entry.pack()
-            self.base_de_dados_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.base_de_dados_entry))
-            self.base_de_dados_button.pack()
-
             self.selecao_label = tk.Label(self.root, text="Selecao Folder:")
             self.selecao_label.pack()
             self.selecao_entry = tk.Entry(self.root)
             self.selecao_entry.pack()
             self.selecao_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.selecao_entry))
             self.selecao_button.pack()
+
+            self.base_de_dados_label = tk.Label(self.root, text="Base de Dados Folder:")
+            self.base_de_dados_label.pack()
+            self.base_de_dados_entry = tk.Entry(self.root)
+            self.base_de_dados_entry.pack()
+            self.base_de_dados_button = tk.Button(self.root, text="Browse", command=lambda: browse_folder(self.base_de_dados_entry))
+            self.base_de_dados_button.pack()
 
             self.formato_quero_label = tk.Label(self.root, text="Formato Quero (Default: .ARW):")
             self.formato_quero_label.pack()
@@ -50,6 +50,9 @@ class Ajudante:
             self.feedback_label = tk.Label(self.root, textvariable=self.feedback_text)
             self.feedback_label.pack()
 
+            # Bind the Enter key (Return key) to the start_copying function
+            self.root.bind('<Return>', self.start_copying)
+
         # if debugging: start_copying()
         self.copied_images      = []
         self.copied_files       = 0
@@ -61,7 +64,8 @@ class Ajudante:
         self.wanted_files       = []
         self.missing_images     = []
 
-        self.debugging = debugging
+        self.debugging          = debugging
+        self.attempts           = 0
 
         # start GUI
 
@@ -75,7 +79,7 @@ class Ajudante:
             selecao       =  r"C:\Users\glauc\Desktop\testdir\sel"
         else:
             selecao = self.selecao_entry.get()
-            self.database = self.base_de_dados_entry.get()
+            if not self.database: self.database = self.base_de_dados_entry.get() # First try: inherit, then user input, then parent dir
             if not self.database: self.database = os.path.dirname(selecao) # If no database is given, try with parent dir
             formato_quero = self.formato_quero_entry.get()
             formato_tenho = self.formato_tenho_entry.get()
@@ -87,7 +91,7 @@ class Ajudante:
         if not os.path.exists(self.dest_dir): os.makedirs(self.dest_dir)
         self.wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
 
-    def start_copying(self):
+    def start_copying(self, event=None):
         self.get_user_input()
         self.progress_var.set(0)
 
@@ -96,6 +100,12 @@ class Ajudante:
         self.total_files         = len(self.wanted_files)
 
         self.file_finder()
+        self.attempts += 1
+
+        if self.copied_files == 0 and self.attempts < 2:
+            self.database = os.path.dirname(self.database)  # If nothing is found, try with parent dir
+            self.start_copying() # Im kinda proud of this recursiveness
+            self.attempts += 1
 
     def file_finder(self):
         self.copied_images = set(os.listdir(self.dest_dir))
@@ -107,7 +117,7 @@ class Ajudante:
                 if file in self.wanted_files:
                     source_filepath = os.path.join(path, file)
                     self.file_copier(source_filepath)
-                    self.root.update()
+                    self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI
 
         if self.missing_images:
             self.feedback_text.set(f"Some images were not found in the base folder.\n"
@@ -118,19 +128,23 @@ class Ajudante:
             self.feedback_text.set(f"Copied {self.copied_files} of {self.total_files} images")
 
         if self.debugging: return
+
         # Show missing images and completion messages in the GUI
         tk.messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
-                                                f"Copied {self.copied_files} of {self.total_files} images")
+                                                f"Found {self.copied_files} of {self.total_files} images")
+
         if self.missing_images: tk.messagebox.showinfo("Missing Images", str(self.missing_images))
 
-        if self.missing_images:
-            text = "Some images were not found in the base de dados.\n"
-            text += f"Copied images: {self.copied_files}\n"
-            text += f"Missing files: {len(self.missing_images)}\n"
-            text += f"Fail rate: {100 * len(self.missing_images) / self.total_files}%\n"
-            self.feedback_text.set(text)
+        # if self.missing_images:
+        #     text = "Some images were not found in the base de dados.\n"
+        #     text += f"Copied images: {self.copied_files}\n"
+        #     text += f"Missing files: {len(self.missing_images)}\n"
+        #     text += f"Fail rate: {100 * len(self.missing_images) / self.total_files}%\n"
+        #     self.feedback_text.set(text)
+        #
+        # tk.messagebox.showinfo("nao_encontradas", str(self.missing_images))
 
-        tk.messagebox.showinfo("nao_encontradas", str(self.missing_images))
+        if not os.listdir(self.dest_dir): os.rmdir(self.dest_dir)
 
     def file_copier(self, source_filepath):
         try:
@@ -159,4 +173,4 @@ def browse_folder(entry):
 if __name__ == "__main__":
     ajudante = Ajudante(debugging=False, enable_gui=True)
 
-# TODO false feedback info: number of missing images, filenames
+# TODO fix wrong feedback info: number of missing images, filenames
