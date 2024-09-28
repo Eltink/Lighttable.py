@@ -95,7 +95,7 @@ class Ajudante:
             formato_quero = ".ARW"
             formato_tenho = ".JPG"
             selecao       = r"C:\Users\andre\Desktop\git\Glauco\Test_images\sel"
-            self.database = r"C:\Users\andre\Desktop\git\Glauco\Test_images\DB"
+            self.database = r"C:\Users\andre\Desktop\git\Glauco\Test_images"
             if not self.database: self.database = self.base_de_dados_entry.get() # First try: inherit, then user input, then parent dir
             if not self.database: self.database = os.path.dirname(selecao) # If database entry is empty, try with selecao parent dir
         else:
@@ -111,13 +111,14 @@ class Ajudante:
 
         if not os.path.exists(self.dest_dir): os.makedirs(self.dest_dir)
         self.wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
-    def file_finder(self):
-        # TODO hardcode first pass giving as database an /ARW folder, then ignoring any /JPG and *sel
 
+    def file_finder(self):
         for path, subdir, files in os.walk(self.database):
+            folder_name = os.path.split(path)[1]
+            if "sel" in folder_name or "JPG" in folder_name : break #ignoring any /JPG and *sel folder
             for file in files:
                 if file in self.wanted_files:
-                    if path == os.path.join(self.database, "sel copiadas"): return
+                    if path == os.path.join(self.database, "1010 sel copiadas"): return
                     self.file_copier(path, file)
                     self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI
 
