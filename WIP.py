@@ -67,7 +67,7 @@ class Ajudante:
             # Bind the Enter key (Return key) to the start_copying function
             self.root.bind('<Return>', self.excecuter)
 
-        # if debugging: start_copying()
+        if debugging: self.excecuter()
 
         # start GUI
         if enable_gui: self.root.mainloop()
@@ -94,8 +94,8 @@ class Ajudante:
         if self.debugging:
             formato_quero = ".ARW"
             formato_tenho = ".JPG"
-            selecao       = r"C:\Users\glauc\Desktop\testdir\sel"
-            self.database = r"C:\Users\glauc\Desktop\testdir\DB"
+            selecao       = r"C:\Users\andre\Desktop\git\Glauco\Test_images\sel"
+            self.database = r"C:\Users\andre\Desktop\git\Glauco\Test_images\DB"
             if not self.database: self.database = self.base_de_dados_entry.get() # First try: inherit, then user input, then parent dir
             if not self.database: self.database = os.path.dirname(selecao) # If database entry is empty, try with selecao parent dir
         else:
@@ -108,23 +108,22 @@ class Ajudante:
             if not formato_tenho: formato_tenho = ".JPG"
 
         self.dest_dir = os.path.join(os.path.dirname(selecao), str(os.path.split(selecao)[-1]) + " copiadas")
-        print(f"self.dest_dir {self.dest_dir}")
 
         if not os.path.exists(self.dest_dir): os.makedirs(self.dest_dir)
         self.wanted_files = [file.replace(formato_tenho, formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
-
     def file_finder(self):
         # TODO hardcode first pass giving as database an /ARW folder, then ignoring any /JPG and *sel
 
         for path, subdir, files in os.walk(self.database):
-            # print(f"path: {path}")
             for file in files:
                 if file in self.wanted_files:
                     if path == os.path.join(self.database, "sel copiadas"): return
-                    print(f"path: {path}")
-                    source_filepath = os.path.join(path, file)
-                    self.file_copier(source_filepath)
+                    self.file_copier(path, file)
                     self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI
+
+        if len(self.copied_images)!= len(self.wanted_files): # This line checks if all images from sel were copied
+            for wanted_file in self.wanted_files:
+                if wanted_file not in self.copied_images and wanted_file not in self.missing_images: self.missing_images.append(wanted_file)
         if self.missing_images:
             self.feedback_text.set(f"Some images were not found in the base folder.\n"
                               f"Copied images: {self.copied_files}\n"
@@ -133,14 +132,13 @@ class Ajudante:
         else:
             self.feedback_text.set(f"Copied {self.copied_files} of {self.total_files} images")
 
-    def file_copier(self, source_filepath):
+    def file_copier(self, path, file_name):
+        source_filepath = os.path.join(path, file_name)
         if source_filepath == self.dest_dir: return
-        print(f"source_filepath: {source_filepath}")
-        print(f"self.dest_dir: {self.dest_dir}")
 
         try:
             shutil.copy(source_filepath, self.dest_dir)
-            self.copied_images.add(source_filepath)
+            self.copied_images.add(file_name)
             self.source_filepaths.append(source_filepath)
             self.copied_files += 1
 
@@ -152,11 +150,8 @@ class Ajudante:
             self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI. Is this working here too?
 
         except Exception as e:
-            self.missing_images.append(source_filepath)
             # # self.feedback_text.set(self.feedback_text.get() + f"File {source_filepath} is wanted but could not be copied from {source_filepath} with error {e}.\n")
             print("Hey! Got this error:", e)
-
-        # FIXME missing images is always empty. WHY???
 
     def closer(self):
         # if self.debugging: return
