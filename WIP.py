@@ -118,7 +118,7 @@ class Ajudante:
             if "sel" in folder_name or "JPG" in folder_name : break #ignoring any /JPG and *sel folder
             for file in files:
                 if file in self.wanted_files:
-                    if path == os.path.join(self.database, "1010 sel copiadas"): return
+                    if path == os.path.join(self.database, "sel copiadas"): return
                     self.file_copier(path, file)
                     self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI
 
