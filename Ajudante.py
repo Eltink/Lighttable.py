@@ -6,6 +6,7 @@ from tkinter import ttk
 
 
 class Ajudante:
+    print("rodou")
     def __init__(self, debugging=False, enable_gui=True):
         if enable_gui:
             self.root = tk.Tk()
@@ -68,8 +69,10 @@ class Ajudante:
         self.attempts           = 0
 
         # start GUI
-
         if enable_gui: self.root.mainloop()
+        print("rodou")
+
+    print("rodoutybm")
 
     def get_user_input(self):
         formato_quero = ".ARW"
@@ -131,7 +134,7 @@ class Ajudante:
 
         # Show missing images and completion messages in the GUI
         tk.messagebox.showinfo("Copying Complete", "Image copying process completed.\n"
-                                                f"Found {self.copied_files} of {self.total_files} images")
+                                                    f"Found {self.copied_files} of {self.total_files} images")
 
         if self.missing_images: tk.messagebox.showinfo("Missing Images", str(self.missing_images))
 
