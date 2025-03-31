@@ -80,7 +80,7 @@ def carrega(filepath):
             return
     # Handle EXIF orientation
     try:
-        orientation = get_exif(filepath, "orientation")
+        orientation = get_exif(filepath, "Orientation")
         if orientation == 8:    img = img.rotate(90, expand=True)
         elif orientation == 3:  img = img.rotate(180, expand=True)
         elif orientation == 6:  img = img.rotate(270, expand=True)
