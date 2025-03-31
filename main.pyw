@@ -1,10 +1,10 @@
 import time
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 from PIL.ExifTags import TAGS
 import os
-import rawpy # Necessary to read .arw files
+# import rawpy # Necessary to read .arw files
 import imageio # Necessary to read .arw files
 import threading
 import subprocess
@@ -16,8 +16,10 @@ from tools import *
 
 debugging = 0
 timing = 0
+
 show_all = 0
 include_sub_dirs = 1
+slideshow_delay = 3.0
 
 # Initialize the GUI
 root = tk.Tk()
@@ -35,92 +37,54 @@ file_info_visible = True
 file_info_text = tk.StringVar()
 file_info_text.set("init")
 file_info_label = tk.Label(root, textvariable=file_info_text, font=('Arial', 12))
-# file_info_label.place(anchor=tk.NW) # seem to be already handled by toggle_file_info
 
-# Set up the copied image feedback display fixme
 feedback_label_text = tk.StringVar()
 feedback_label_text.set("init")
 feedback_label = tk.Label(root, textvariable=feedback_label_text, font=('Arial', 12))
 feedback_label.place(y=200, anchor=tk.NW)
 
-
 # Toggle file information display
 def toggle_file_info(event):
     global file_info_visible
     file_info_visible = not file_info_visible
-    if file_info_visible:
-        file_info_label.place(anchor=tk.NW)
-    else:
-        file_info_label.place_forget()
+    if file_info_visible:   file_info_label.place(anchor=tk.NW)
+    else:                   file_info_label.place_forget()
 
-
-# Get the source directory from user input
+# Grab the initial source_dir
 clipboard_getter = tk.Tk()
-clipboard = clipboard_getter.clipboard_get()
+try: clipboard = clipboard_getter.clipboard_get()
+except: clipboard = ""
 clipboard_getter.update_idletasks()
 clipboard_getter.destroy()
 
-if os.path.exists(clipboard): source_dir = clipboard
-elif debugging: source_dir = r"C:\Users\glauc\Desktop\Foz_v0"
-else: source_dir = filedialog.askdirectory()
+if os.path.exists(clipboard):   source_dir = clipboard
+elif debugging:                 source_dir = r"C:\\Users\\glauc\\Desktop\\Foz_v0"
+else:                           source_dir = filedialog.askdirectory()
+
 destination_dir = get_destination_dir(source_dir)
-
-# Define valid image file extensions
-valid_extensions = [".JPG", ".jpg", ".jpeg", ".png"] #, ".ARW" testar se jgep e png funcionam
-t0 = time.time()
-
-# Original list of files with valid extensions
-# if not include_sub_dirs: files = [file for file in os.listdir(source_dir) if any(file.endswith(ext) for ext in valid_extensions)]
-# else: files = [os.path.join(root, filename) for root, _, filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions]
-
-# filepaths = ([os.path.join(root, filename) for root, _, filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions])
-
-# files = [os.path.join(root, filename) for  filenames in os.walk(source_dir) for filename in filenames if any(filename.endswith(ext) for ext in valid_extensions]
-
-filepaths = []
-for path, subdir, files in os.walk(source_dir):
-    for file in files:
-        if any(file.endswith(ext) for ext in valid_extensions):
-            filepaths.append(os.path.join(path, file))
-
-# Refining files
-t1 = time.time()
-
-if len(filepaths) == 0:  tk.messagebox.showinfo("Folder error", "No valid images were found")
-if show_all: showable = [1]*len(filepaths)
-else:        showable = is_it_showable(filepaths)  # Example: [1, 1, 0, 1]
-
-if timing: print("Time to calculate showable: ", time.time()-t1)
-files = [file for file, is_showable in zip(files, showable) if is_showable]
-# Todo check source size before running
-filepaths = [filepath for filepath, is_showable in zip(filepaths, showable) if is_showable] # Is this running twice?
-if timing: print("Time to trim files by showable: ", time.time()-t0)
-
-loaded_files = dict.fromkeys(filepaths, None)
+valid_extensions = [".JPG", ".jpg", ".jpeg", ".png"]  # ".ARW" can be tested if needed
+loaded_files = {}
 copied_files = {}
 
-
-# Load an image and perform necessary adjustments
 def carrega(filepath):
     if loaded_files.get(filepath) is not None:
-        print(f"Atempted to load file {filepath} again")
-        return #Experimental line, not sure if it works or not...
-    # if loaded_files.get(files[index]) is not None: return # This could work also, but i dont get it completely
-
+        # Already loaded
+        return
     if filepath.endswith('.ARW'):
-        # Todo ask user if he indeed wants to open *.ARW files
-        # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
-        raw = rawpy.imread(filepath)
-        rgb = raw.postprocess() # This is a slow function
-        img = Image.fromarray(rgb)
-    else: img = Image.open(filepath)
-
+        # For .ARW files, if needed
+        pass  # Insert rawpy logic if required
+    else:
+        try: img = Image.open(filepath)
+        except Exception as e:
+            print(f"Could not open file {filepath}: {e}")
+            return
+    # Handle EXIF orientation
     try:
-        Orientation = get_exif(filepath, "Orientation")
-        if   Orientation == 8: img = img.rotate(90,  expand=True)
-        elif Orientation == 3: img = img.rotate(180, expand=True)
-        elif Orientation == 6: img = img.rotate(270, expand=True)
-    except Exception  as e: print(f"An error occurred on loading file {filepath}: {e}")
+        orientation = get_exif(filepath, "orientation")
+        if orientation == 8:    img = img.rotate(90, expand=True)
+        elif orientation == 3:  img = img.rotate(180, expand=True)
+        elif orientation == 6:  img = img.rotate(270, expand=True)
+    except Exception as e:      print(f"An error occurred on loading file {filepath}: {e}")
 
     aspect_ratio = img.width / img.height
     screen_width = root.winfo_screenwidth()
@@ -128,149 +92,196 @@ def carrega(filepath):
     screen_aspect_ratio = screen_width / screen_height
 
     if aspect_ratio < screen_aspect_ratio:
-        img = img.resize((int(screen_height * aspect_ratio), screen_height), Image.LANCZOS) #Image.ANTIALIAS is an alternative. Better?
-    else:
-        img = img.resize((screen_width, int(screen_width / aspect_ratio)), Image.LANCZOS)
+        img =   img.resize((int(screen_height * aspect_ratio), screen_height), Image.LANCZOS)
+    else: img = img.resize((screen_width, int(screen_width / aspect_ratio)), Image.LANCZOS)
 
-    loaded_files[filepath] = ImageTk.PhotoImage(img) # Converting the image from PIL to TK format
-    # return ImageTk.PhotoImage(img)
-    # Legacy version
+    loaded_files[filepath] = ImageTk.PhotoImage(img)  # Converting the image from PIL to TK format
 
-def get_image_metadata(file):
-    filepath = os.path.join(source_dir, file)
-    metadata_tags = ["FocalLength",    "FNumber",     "ExposureTime", "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode", "DateTime", "LensModel"]
-    metadata_labels = ["FocalLength: ", "FNumber: ", "ExposureTime: ", "ISO-",         "Exposure Bias: ",   "Exposure Mode: ", "DateTime: ", "Lens: "]
+def get_image_metadata(filepath):
+    metadata_tags = ["FocalLength", "FNumber", "ExposureTime", "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode", "DateTime", "LensModel"]
+    metadata_labels = ["FocalLength: ", "FNumber: ", "ExposureTime: ", "ISO-", "Exposure Bias: ", "Exposure Mode: ", "DateTime: ", "Lens: "]
     try:
-        metadata = [str(get_exif(filepath, tag)) for tag in metadata_tags]
-        if float(metadata[2]) < 1:
-            metadata[2] = str(round(1 / float(metadata[2]))) + "s"
-            metadata_labels[2] += " 1/"
-        else: metadata[2] = str(round(float(metadata[2]))) + "s"
+        metadata_values = [str(get_exif(filepath, tag)) for tag in metadata_tags]
+        # Format exposure time
+        if metadata_values[2] and metadata_values[2] != "None":
+            try:
+                float_val = float(metadata_values[2])
+                if float_val < 1:
+                    metadata_values[2] = str(round(1 / float_val)) + "s"
+                    metadata_labels[2] += " 1/"
+                else: metadata_values[2] = str(round(float_val)) + "s"
+            except: pass
 
-        if metadata[5] == "0": metadata[5] = "Single"
-        elif metadata[5] == "2": metadata[5] = "Bracketing"
-        else: metadata[5] = str(metadata[5]) + " (unknown case, please investigate)"
-        formatted_metadata = [label + value if value else "" for label, value in zip(metadata_labels, metadata)]
+        # Format exposure mode
+        if metadata_values[5] == "0":   metadata_values[5] = "Single"
+        elif metadata_values[5] == "2": metadata_values[5] = "Bracketing"
+        else:                           metadata_values[5] = str(metadata_values[5]) + " (unknown case)"
+
+        formatted_metadata = []
+        for label, value in zip(metadata_labels, metadata_values):
+            if value and value != "None":
+                formatted_metadata.append(label + value)
         return '\n'.join(formatted_metadata)
     except Exception as e:
-        print(f"An error occurred getting metadata from file {file}: {e}")
+        print(f"An error occurred getting metadata from file {filepath}: {e}")
         return None
 
+
 def mostra_imagem(filepath):
+    global index_atual
     if filepath in loaded_files:
         imagem_mostrada['image'] = loaded_files[filepath]
         if file_info_visible:
             file_info_label.place(anchor=tk.NW)
             metadata = get_image_metadata(filepath)
-            file_info_text.set(metadata)
-        else: file_info_label.place_forget()
-        # feedback_label.place_forget()
-        # todo How do i remove the feedback label when not needed?
-        # feedback_label.pack()
-        # No idea why i put this pack here, but without it its working
-
+            if metadata:    file_info_text.set(metadata)
+            else:           file_info_text.set("No EXIF")
+        else:               file_info_label.place_forget()
         root.update()
-        root.title("Eu amo o Bernado - " + str(filepaths[index_atual]) + " - " + str(index_atual + 1) + " of " + str(len(filepaths)))
-    else: # Debugging
-        print(f"File {filepath} was not found in loaded_files.Info for debugging follows:")
-        print(f"index_atual: {index_atual}")
-        print(f"files[index_atual]: {files[index_atual]}")
-        print(f"loaded_files[files[index_atual]] was not found")
-        print("These are the available dictionary keys:", loaded_files.keys())
+        root.title("Eu amo o Bernado - " + str(filepath) + " - " + str(index_atual + 1) + " of " + str(len(filepaths)))
+    else:   print(f"File {filepath} not found in loaded_files.")
 
-    # # What is this doing here? Is it even doing anything?/???
-    # try: img = Image.open(os.path.join(source_dir, file))
-    # except FileNotFoundError:
-    #     print(f"Error: {file} not found")
-    #     return
-    # except OSError as e:
-    #     print(f"Error opening file: {e}")
-    #     return
-    return
+
+# We'll define a function to rebuild the file list based on show_all/include_sub_dirs
+filepaths = []
+
+def reload_filepaths():
+    global filepaths, loaded_files, index_atual, show_all, include_sub_dirs
+    # Clear old loaded files
+    loaded_files.clear()
+
+    # Recalculate filepaths based on include_sub_dirs
+    if include_sub_dirs == 0:
+        # no subdirectories
+        filepaths = [os.path.join(source_dir, file) for file in os.listdir(source_dir)
+                     if any(file.endswith(ext) for ext in valid_extensions)]
+    else:
+        # with subdirectories
+        temp_list = []
+        for path, subdir, files_in_dir in os.walk(source_dir):
+            for file in files_in_dir:
+                if any(file.endswith(ext) for ext in valid_extensions):
+                    temp_list.append(os.path.join(path, file))
+        filepaths = temp_list
+
+    # If no images found, show message
+    if len(filepaths) == 0: messagebox.showinfo("Folder error", "No valid images were found")
+
+    # If show_all == 0, use bracket logic, else we show them all
+    if show_all == 0:
+        showable = is_it_showable(filepaths)
+        filepaths[:] = [fp for fp, is_sh in zip(filepaths, showable) if is_sh]
+
+    # Reinitialize loaded_files for the updated file list
+    loaded_files = dict.fromkeys(filepaths, None)
+
+    # Reset index
+    index_atual = 0
+    if filepaths:
+        carrega(filepaths[0])
+        mostra_imagem(filepaths[0])
+        if len(filepaths) > 1:
+            carrega(filepaths[1])
+
+clipboard_getter = None
+
+t1 = time.time()
+reload_filepaths()  # Build the initial list of filepaths
+files = filepaths.copy()  # For reference, though we actually use filepaths all over
+
+if timing:  print("Time to calculate showable: ", time.time() - t1)
 
 # Event handlers
+
 def copiar(event):
+    global index_atual
+    if not filepaths:   return
     filepath = filepaths[index_atual]
-    if filepath in copied_files:
-        feedback_label_text.set("Already copied")
+    if filepath in copied_files:    feedback_label_text.set("Already copied")
     else:
         copia_arquivo(source_dir, filepath, destination_dir)
         copied_files[filepath] = True
-        if get_exif(filepath, "ExposureMode") != 2: # Isnt bracketed
-            feedback_label_text.set(f"Copied {index_atual+1}")
-
-        elif get_exif(filepath, "ExposureMode") == 2: # Is bracketed
+        if get_exif(filepath, "ExposureMode") != 2:
+            feedback_label_text.set(f"Copied {index_atual + 1}")
+        else:
             feedback_label_text.set(f"Copied median {filepath}")
             EV = get_exif(filepath, "ExposureBiasValue")
+            if not EV:  EV = 0  # fallback
+            try:        EV = float(EV)
+            except:     EV = 0
 
             darker = file_navigator(filepath, -1)
-            if round(get_exif(darker, "ExposureBiasValue"), 1) in [EV - 3, EV - 2, EV - 1]:
-                copia_arquivo(source_dir, darker,
-                              destination_dir)  # How is this working, if source and darker are paths?
-                feedback_label_text.set(feedback_label_text.get()+" and darker")
-            else: feedback_label_text.set(feedback_label_text.get()+" but no darker")
+            if round(float(get_exif(darker, "ExposureBiasValue") or 0), 1) in [EV - 3, EV - 2, EV - 1]:
+                copia_arquivo(source_dir, darker, destination_dir)
+                feedback_label_text.set(feedback_label_text.get() + " and darker")
+            else:
+                feedback_label_text.set(feedback_label_text.get() + " but no darker")
 
             lighter = file_navigator(filepath, +1)
-            if round(get_exif(lighter, "ExposureBiasValue"), 1) in [EV + 3, EV + 2, EV + 1]:
+            if round(float(get_exif(lighter, "ExposureBiasValue") or 0), 1) in [EV + 3, EV + 2, EV + 1]:
                 copia_arquivo(source_dir, lighter, destination_dir)
                 feedback_label_text.set(feedback_label_text.get() + " and lighter")
-            else: feedback_label_text.set(feedback_label_text.get() + " but no lighter")
+            else:
+                feedback_label_text.set(feedback_label_text.get() + " but no lighter")
 
-            if feedback_label_text.get().endswith("and darker and lighter"): feedback_label_text.set(f"Copied 3x {index_atual+1}")
+            if feedback_label_text.get().endswith("and darker and lighter"):
+                feedback_label_text.set(f"Copied 3x {index_atual + 1}")
 
         right(event)
 
 def proxima(event):
     global index_atual
+    if not filepaths: return
     index_atual = (index_atual + 1) % len(filepaths)
     mostra_imagem(filepaths[index_atual])
 
 def anterior(event):
     global index_atual
+    if not filepaths: return
     index_atual = (index_atual - 1) % len(filepaths)
     mostra_imagem(filepaths[index_atual])
 
 def right(event):
     proxima(event)
-    if loaded_files.get(filepaths[(index_atual + 1) % len(filepaths)]) is None:
-        carrega(filepaths[index_atual + 1])
+    if len(filepaths) > 1:
+        next_idx = (index_atual + 1) % len(filepaths)
+        if loaded_files.get(filepaths[next_idx]) is None:
+            carrega(filepaths[next_idx])
 
 def left(event):
     anterior(event)
-    if loaded_files.get(filepaths[(index_atual - 1) % len(filepaths)]) is None:
-        carrega(filepaths[index_atual - 1])
-
+    if len(filepaths) > 1:
+        prev_idx = (index_atual - 1) % len(filepaths)
+        if loaded_files.get(filepaths[prev_idx]) is None:
+            carrega(filepaths[prev_idx])
 
 def exit_feedback(event):
     if not copied_files:
-        root.destroy() # If no images were selected, just destroy without feedback info
+        root.destroy()
         return
+
     def get_total_size(path):
         total_size = 0
-        # Iterate over all items (files and directories) in the specified path
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
-            # If it's a file, add its size to the total size
             if os.path.isfile(item_path):
                 total_size += os.path.getsize(item_path)
-            # If it's a directory, recursively call the function to get the total size of files within it
             elif os.path.isdir(item_path):
                 total_size += get_total_size(item_path)
         return total_size
 
-    source_size = get_total_size(source_dir) / (1024**3)
-    destination_size = get_total_size(destination_dir)/(1024**3)
-    tk.messagebox.showinfo("Copying Complete",
-                           f"Image copying process completed.\n"
-                           f"Copied files: {len(copied_files)}\n"
-                           f"Keep rate = {100*len(copied_files)/len(files):.2f}%\n"
-                           f"Total time = {time.time()-t0:.2f} seconds\n"
-                           f"Time per image = {len(files)/(time.time()-t0):.2f} Hz bzw FPS\n\n"
-                           f"Original - final = saving\n "
-                           f"{source_size:.0f} - {destination_size:.0f} = {(source_size - destination_size):.0f} GB\n\n"
-                           f"Press Enter to close")
+    source_size = get_total_size(source_dir) / (1024 ** 3)
+    destination_size = get_total_size(destination_dir) / (1024 ** 3)
+    messagebox.showinfo("Copying Complete",
+                        f"Image copying process completed.\n"\
+                        f"Copied files: {len(copied_files)}\n"\
+                        f"Keep rate = {100 * len(copied_files) / len(filepaths):.2f}%\n"\
+                        f"Total time = {time.time() - t1:.2f} seconds\n"\
+                        f"Time per image = {len(filepaths) / (time.time() - t1):.2f} Hz bzw FPS\n\n"\
+                        f"Original - final = saving\n "\
+                        f"{source_size:.0f} - {destination_size:.0f} = {(source_size - destination_size):.0f} GB\n\n"\
+                        f"Press Enter to close")
     root.destroy()
-# FIXME correct rounding for big or small numbers
 
 # Bind keys to event handlers
 root.bind("<Up>", copiar)
@@ -282,98 +293,73 @@ root.bind("8", copiar)
 root.bind("i", toggle_file_info)
 root.bind("<Control-q>", exit_feedback)
 
-t0 = time.time()
-carrega(filepaths[0])
-if timing: print("Time to load first image: ", time.time()-t0)
-t1 = time.time()
-mostra_imagem(filepaths[0])
-if timing: print("Time to show first image: ", time.time()-t1)
-t2 = time.time()
-carrega(filepaths[1])
-if timing: print("Time to load second image: ", time.time()-t2)
-if timing: print("Time to boot program: ", time.time()-t0)
-
-
-def open_in_explorer(event):
+def open_in_explorer(event=None):
+    if not filepaths: return
     run_arg = r'explorer /select, "' + filepaths[index_atual] + '"'
     subprocess.run(run_arg)
-root.bind("<Control-e>", open_in_explorer)  # Binds Control+e to open in Explorer
+
+root.bind("<Control-e>", open_in_explorer)
 open_in_explorer_button = tk.Button(root, text="Open in Explorer", command=open_in_explorer)
 open_in_explorer_button.pack()
-# This is not working and i dont know why
-# This is now working and i dont know how
 
-def open_with_photos(_=None): # I dont understand whats the difference between this and event as an argument
-    file_path = os.path.join(source_dir, filepaths[index_atual])
-    os.system(f'start "" "{file_path}"')  # Opens the file with the default associated program
+def open_with_photos(_=None):
+    if not filepaths:
+        return
+    file_path = filepaths[index_atual]
+    os.system(f'start "" "{file_path}"')
 
-root.bind("<Control-r>", open_with_photos)  # Binds Control+r to open with Windows Photos
+root.bind("<Control-r>", open_with_photos)
 
 slideshow_event = threading.Event()
 slideshow_thread = None
 slideshow_running = False
 
-
-def start_slideshow(event=None):  # Add the event parameter with a default value of None
-    global index_atual, slideshow_running, slideshow_thread
-
-    # Toggle slideshow state
+def start_slideshow(event=None):
+    global index_atual, slideshow_running, slideshow_thread, slideshow_delay
     slideshow_running = not slideshow_running
 
     def slideshow_thread_func():
         global index_atual
-        while slideshow_running:
+        while slideshow_running and filepaths:
             index_atual = (index_atual + 1) % len(filepaths)
             mostra_imagem(filepaths[index_atual])
-            root.update()  # Update the GUI
-            time.sleep(3)  # Delay between images (in seconds)
+            root.update()
+            time.sleep(slideshow_delay)
 
     if slideshow_running:
-        # Start the slideshow thread if it's not already running
-        if not hasattr(root, "slideshow_thread") or not slideshow_thread.is_alive():
+        if not (slideshow_thread and slideshow_thread.is_alive()):
             slideshow_thread = threading.Thread(target=slideshow_thread_func)
-            slideshow_thread.daemon = True  # Allow the thread to be terminated when the program exits
+            slideshow_thread.daemon = True
             slideshow_thread.start()
     else:
-        # Stop the slideshow thread
         slideshow_running = False
-        if hasattr(root, "slideshow_thread") and slideshow_thread.is_alive():
-            slideshow_thread.join()  # Wait for the thread to finish
+        if slideshow_thread and slideshow_thread.is_alive():
+            slideshow_thread.join()
+
 root.bind("s", start_slideshow)
 
-
-# WIP not working yet
-# Define a global flag and thread to track and interrupt the loading process
-# loading_thread = None
-# loading_in_progress = False
-# terminate_loading = False  # Flag to signal thread should be terminated
-#
-# Define your global variables here
 loading_in_progress = False
 loading_thread = None
 loaded_count = 0
-stop_loading_event = threading.Event()  # Event to signal the loading thread to stop
+stop_loading_event = threading.Event() # Event to signal the loading thread to stop
 
 def load_all_images(event=None):
     global index_atual, loading_in_progress, loading_thread, loaded_count
 
     if loading_thread and loading_thread.is_alive():
-        stop_loading_event.set()  # Signal the loading thread to stop
-        stop_loading_event.clear()  # Clear the event for the next loading
-        # Wait a short while for the thread to respond to the stop command
-        loading_thread.join(timeout=0.01)
+        stop_loading_event.set()            # Signal the loading thread to stop
+        stop_loading_event.clear()          # Clear the event for the next loading
+        loading_thread.join(timeout=0.01)   # Wait a short while for the thread to respond to the stop command
         loading_in_progress = False
         loading_thread = None
-
     else:
         loaded_count = 0
         loading_in_progress = True
 
-        # Create a new GUI window for progress display
         progress_window = tk.Toplevel(root)
         progress_window.title("Loading Images Progress")
         progress_label = tk.Label(progress_window, text="Loading images... Please wait.")
-        progress_label.pack(padx=10, pady=10)  # Adjust the values as needed
+        progress_label.pack(padx=10, pady=10)
 
         total_images = len(filepaths)
         start_time = time.time()
@@ -389,10 +375,7 @@ def load_all_images(event=None):
                     carrega(filepaths[i])
                     loaded_count += 1
 
-                # Calculate the progress
                 progress = (loaded_count / total_images) * 100
-                # ... your actual image loading logic here ...
-
                 current_time = time.time()
                 elapsed_time = current_time - start_time
 
@@ -404,83 +387,125 @@ def load_all_images(event=None):
                     estimated_remaining_time = 0
 
                 if estimated_remaining_time < 60:
-                    estimated_remaining_time_text = f"Remaining: {estimated_remaining_time:.0f} seconds"
+                    ert_text = f"Remaining: {estimated_remaining_time:.0f} seconds"
                 else:
-                    estimated_remaining_time_text = f"Remaining: {estimated_remaining_time/60:.1f} minutes"
+                    ert_text = f"Remaining: {estimated_remaining_time / 60:.1f} minutes"
 
-                progress_label.config(text=f"Progress: {progress:.2f}%\n"
-                                           f"Time per Image: {avg_time_per_image:.3f} seconds\n"
-                                           f"{estimated_remaining_time_text}") #f"Elapsed Time: {elapsed_time:.2f} seconds\n"
+                progress_label.config(
+                    text=f"Progress: {progress:.2f}%\n"\
+                         f"Time per Image: {avg_time_per_image:.3f} seconds\n"\
+                         f"{ert_text}")
+
                 progress_window.update()
 
-            loading_in_progress = False  # Reset the flag
+            loading_in_progress = False  # Reset the flag when loading is complete
             progress_window.destroy()    # Close the progress window when loading is complete
 
         loading_thread = threading.Thread(target=loading_thread_func)
         loading_thread.start()
+
 root.bind("l", load_all_images)
 
 def load_some_images(event=None):
     global index_atual, loaded_files
-    # num_images = 20   # Number of images to be loaded
-    allowed_time = 5  # Seconds to run the function for
+    allowed_time = 5
     progress_window = tk.Toplevel(root)
     progress_window.title("Loading Images Progress")
     progress_label = tk.Label(progress_window, text="Loading images... Please wait.")
-    progress_label.pack(padx=80, pady=20)  # Adjust the values as needed
+    progress_label.pack(padx=80, pady=20)
 
-    # total_images = min(num_images, len(files))  # Limit to available files
-    total_images = len(filepaths)  # Limit to available files
+    total_images = len(filepaths)
     start_time = time.time()
-    loaded_count = 0
+    loaded_count_local = 0
 
-    while (time.time() - start_time) < allowed_time:
-        i = (index_atual + loaded_count) % len(filepaths)  # Calculate the index based on index_atual
+    while (time.time() - start_time) < allowed_time and loaded_count_local < total_images:
+        i = (index_atual + loaded_count_local) % len(filepaths)
         if loaded_files.get(filepaths[i]) is None:
             carrega(filepaths[i])
-            loaded_count += 1
-        else:
-            loaded_count += 1 # This is needed to increase i. A more meaningfull implementation is needed
+        loaded_count_local += 1
 
         current_time = time.time()
         elapsed_time = current_time - start_time
-
-        progress_label.config(text= f"Elapsed Time: {elapsed_time:.2f} seconds\n" 
-                                    f"Loaded images: {loaded_count}\n")
+        progress_label.config(text= f"Elapsed Time: {elapsed_time:.2f} seconds\n"
+                                    f"Loaded images: {loaded_count_local}\n")
         progress_window.update()
-    progress_window.destroy()  # Close the progress window when loading is complete
+
+    progress_window.destroy()
+
 root.bind("L", load_some_images)
 
-def callAjudante(_=None): # I dont understand whats the difference between this and event as an argument
-    ajudante = Ajudante.Ajudante(debugging=False, enable_gui=False)
 
-    ajudante.database = os.path.dirname(os.path.dirname(destination_dir)) # database is grandparent dir of selection folder
+def callAjudante(_=None):
+    ajudante = Ajudante.Ajudante(debugging=False, enable_gui=True)
+    ajudante.database = os.path.dirname(os.path.dirname(destination_dir))
     selecao = destination_dir
     ajudante.formato_quero = ".ARW"
     ajudante.formato_tenho = ".JPG"
-
     ajudante.dest_dir = os.path.join(selecao, "copiadas")
+    if not os.path.exists(ajudante.dest_dir):
+        os.makedirs(ajudante.dest_dir)
+    ajudante.wanted_files = [file.replace(ajudante.formato_tenho, ajudante.formato_quero)
+                             for path, subdir, files_ in os.walk(selecao)
+                             for file in files_]
 
-    if not os.path.exists(ajudante.dest_dir): os.makedirs(ajudante.dest_dir)
-    ajudante.wanted_files = [file.replace(ajudante.formato_tenho, ajudante.formato_quero) for path, subdir, files in os.walk(selecao) for file in files]
-
-    ajudante.copied_images       = set(os.listdir(ajudante.dest_dir))
-    ajudante.selection_images    = set(ajudante.wanted_files)
-    ajudante.total_files         = len(ajudante.wanted_files)
+    ajudante.copied_images      = set(os.listdir(ajudante.dest_dir))
+    ajudante.selection_images   = set(ajudante.wanted_files)
+    ajudante.total_files        = len(ajudante.wanted_files)
 
     ajudante.file_finder()
-root.bind("<Control-s>", callAjudante)  # Binds Control+s to find arw associated with selecao
-# TODO implement feedback msgbox without GUI, fix console errors
-# TODO for one use case, copied just the first image from selecao
+
+root.bind("<Control-s>", callAjudante)
+
+###############################################
+# Menu / Settings window code for changing show_all, include_sub_dirs, and slideshow_delay
+###############################################
+
+settings_window = None
+
+def open_settings_window():
+    global settings_window
+    if settings_window and tk.Toplevel.winfo_exists(settings_window):
+        settings_window.focus()
+        return
+
+    settings_window = tk.Toplevel(root)
+    settings_window.title("Settings")
+
+    bool_var_show_all   = tk.BooleanVar(value=bool(show_all))
+    bool_var_sub_dirs   = tk.BooleanVar(value=bool(include_sub_dirs))
+    double_var_delay    = tk.DoubleVar(value=float(slideshow_delay))
+
+    def apply_settings():
+        global show_all, include_sub_dirs, slideshow_delay
+        show_all = 1 if bool_var_show_all.get() else 0
+        include_sub_dirs = 1 if bool_var_sub_dirs.get() else 0
+        slideshow_delay = double_var_delay.get()
+        reload_filepaths()
+
+    tk.Checkbutton(settings_window, text="Show All", variable=bool_var_show_all).pack(anchor=tk.W, padx=10, pady=5)
+    tk.Checkbutton(settings_window, text="Include Subdirectories", variable=bool_var_sub_dirs).pack(anchor=tk.W, padx=10, pady=5)
+
+    tk.Label(settings_window, text="Slideshow delay (seconds)").pack(anchor=tk.W, padx=10)
+    spin_delay = tk.Spinbox(settings_window, from_=0.0, to=60.0, increment=0.5, textvariable=double_var_delay)
+    spin_delay.pack(anchor=tk.W, padx=10, pady=5)
+
+    btn_apply = tk.Button(settings_window, text="Apply", command=apply_settings)
+    btn_apply.pack(pady=10)
+
+    settings_window.resizable(False, False)
+
+menu_bar = tk.Menu(root)
+
+settings_menu = tk.Menu(menu_bar, tearoff=0)
+settings_menu.add_command(label="Open Settings Window", command=open_settings_window)
+menu_bar.add_cascade(label="Settings", menu=settings_menu)
+root.config(menu=menu_bar)
+
+root.bind_all("<Alt-s>", lambda e: open_settings_window())
 
 root.mainloop()
+
 print("fim")
 
-if not os.listdir(destination_dir): os.rmdir(destination_dir)
-#Interestingly, this gets executed even if you Alt F4 the
-
-# TODO fix copiar to handle incomplete brackets without throuwing an error
-# TODO if sel is empty delete DONE!
-# Todo drow down menu loop around images = true
-# TODO subtractive mode: move to trash can
-# TODO implement some kind of undo
+if not os.listdir(destination_dir):
+    os.rmdir(destination_dir)
