@@ -22,9 +22,10 @@ def get_cached_metadata(filepath, tag):
 def get_exif(filepath, gettag):  # your original function
     if filepath.endswith('.ARW'):
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
-        raw = rawpy.imread(filepath)
-        rgb = raw.postprocess()
-        img = Image.fromarray(rgb)
+        # raw = rawpy.imread(filepath)
+        # rgb = raw.postprocess()
+        # img = Image.fromarray(rgb)
+        raise "ARW support was disabled"
     else:
         img = Image.open(filepath)
     try:
