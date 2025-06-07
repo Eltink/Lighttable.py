@@ -1,9 +1,25 @@
 import os
 from PIL import Image, ImageTk, ExifTags
-import rawpy # Necessary to read .arw files
+# import rawpy # Necessary to read .arw files
 import time
 
-def get_exif(filepath, gettag): # New version, using filepath and reading only the necessary
+metadata_cache = {}
+def get_cached_metadata(filepath, tag):
+    """
+    Returns the EXIF value for a given filepath/tag pair,
+    caching the result to avoid repeated file I/O.
+    """
+    # If we already have the value in cache, just return it
+    if (filepath, tag) in metadata_cache:
+        return metadata_cache[(filepath, tag)]
+
+    # Otherwise, call the original get_exif (defined below or imported),
+    # then store the result in our cache.
+    value = get_exif(filepath, tag)
+    metadata_cache[(filepath, tag)] = value
+    return value
+
+def get_exif(filepath, gettag):  # your original function
     if filepath.endswith('.ARW'):
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
         raw = rawpy.imread(filepath)
@@ -16,7 +32,8 @@ def get_exif(filepath, gettag): # New version, using filepath and reading only t
         if exif_data is not None:
             for k, v in exif_data.items():
                 tag = ExifTags.TAGS.get(k)
-                if tag == gettag and not v != v: # and if v is not NaN
+                # Check if this is the specific tag we want, ignoring NaN
+                if tag == gettag and not v != v:
                     return v
         return None
     except (AttributeError, KeyError):

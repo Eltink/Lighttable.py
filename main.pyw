@@ -1,9 +1,10 @@
 import time
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 from PIL import Image, ImageTk
 from PIL.ExifTags import TAGS
 import os
+import ctypes
 # import rawpy # Necessary to read .arw files
 import imageio # Necessary to read .arw files
 import threading
@@ -16,7 +17,6 @@ from tools import *
 
 debugging = 0
 timing = 0
-
 show_all = 0
 include_sub_dirs = 1
 slideshow_delay = 3.0
@@ -27,29 +27,6 @@ imagem_mostrada = tk.Label(root)
 imagem_mostrada.pack()
 index_atual = 0
 
-# Set up the window
-root.title("Eu amo o Bernado")
-root.state('zoomed')
-root.configure(background="black")
-
-# Set up the file information display
-file_info_visible = True
-file_info_text = tk.StringVar()
-file_info_text.set("init")
-file_info_label = tk.Label(root, textvariable=file_info_text, font=('Arial', 12))
-
-feedback_label_text = tk.StringVar()
-feedback_label_text.set("init")
-feedback_label = tk.Label(root, textvariable=feedback_label_text, font=('Arial', 12))
-feedback_label.place(y=200, anchor=tk.NW)
-
-# Toggle file information display
-def toggle_file_info(event):
-    global file_info_visible
-    file_info_visible = not file_info_visible
-    if file_info_visible:   file_info_label.place(anchor=tk.NW)
-    else:                   file_info_label.place_forget()
-
 # Grab the initial source_dir
 clipboard_getter = tk.Tk()
 try: clipboard = clipboard_getter.clipboard_get()
@@ -58,8 +35,44 @@ clipboard_getter.update_idletasks()
 clipboard_getter.destroy()
 
 if os.path.exists(clipboard):   source_dir = clipboard
-elif debugging:                 source_dir = r"C:\\Users\\glauc\\Desktop\\Foz_v0"
+elif debugging:                 source_dir = r"E:\Selecionar\2024_09_18_Islandia\A73\JPGs\10040906"
 else:                           source_dir = filedialog.askdirectory()
+
+# Set up the window
+root.title("Eu amo o Bernado")
+root.state('zoomed')
+root.configure(background="black")
+
+#root.after(1, lambda: root.attributes("-topmost", True))
+#root.after(1, lambda: root.focus_force())
+
+root.lift()
+root.attributes("-topmost", True)
+root.after(1000, lambda: root.attributes("-topmost", False))
+ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
+
+# Set up the file information display
+file_info_visible = True
+file_info_text = tk.StringVar()
+file_info_text.set("init")
+file_info_label = tk.Label(root, textvariable=file_info_text, font=('Arial', 12))
+
+feedback_label_text = tk.StringVar()
+feedback_label_text.set(" ")
+feedback_label = tk.Label(root, textvariable=feedback_label_text, font=('Arial', 12))
+feedback_label.place(y=200, anchor=tk.NW)
+
+bracketed_info_text = tk.StringVar()
+bracketed_info_text.set(" ")
+bracketed_info_label = tk.Label(root, textvariable=bracketed_info_text, font=('Arial', 12))
+bracketed_info_label.place(y=400, anchor=tk.NW)
+
+# Toggle file information display
+def toggle_file_info(event):
+    global file_info_visible
+    file_info_visible = not file_info_visible
+    if file_info_visible:   file_info_label.place(anchor=tk.NW)
+    else:                   file_info_label.place_forget()
 
 destination_dir = get_destination_dir(source_dir)
 valid_extensions = [".JPG", ".jpg", ".jpeg", ".png"]  # ".ARW" can be tested if needed
@@ -67,12 +80,8 @@ loaded_files = {}
 copied_files = {}
 
 def carrega(filepath):
-    if loaded_files.get(filepath) is not None:
-        # Already loaded
-        return
-    if filepath.endswith('.ARW'):
-        # For .ARW files, if needed
-        pass  # Insert rawpy logic if required
+    if loaded_files.get(filepath) is not None: return  # Already loaded
+    if filepath.endswith('.ARW'): pass  # placeholder for rawpy logic
     else:
         try: img = Image.open(filepath)
         except Exception as e:
@@ -80,7 +89,7 @@ def carrega(filepath):
             return
     # Handle EXIF orientation
     try:
-        orientation = get_exif(filepath, "Orientation")
+        orientation = get_cached_metadata(filepath, "Orientation")
         if orientation == 8:    img = img.rotate(90, expand=True)
         elif orientation == 3:  img = img.rotate(180, expand=True)
         elif orientation == 6:  img = img.rotate(270, expand=True)
@@ -98,10 +107,10 @@ def carrega(filepath):
     loaded_files[filepath] = ImageTk.PhotoImage(img)  # Converting the image from PIL to TK format
 
 def get_image_metadata(filepath):
-    metadata_tags = ["FocalLength", "FNumber", "ExposureTime", "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode", "DateTime", "LensModel"]
-    metadata_labels = ["FocalLength: ", "FNumber: ", "ExposureTime: ", "ISO-", "Exposure Bias: ", "Exposure Mode: ", "DateTime: ", "Lens: "]
+    metadata_tags =   ["FocalLength",   "FNumber",   "ExposureTime",   "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode",    "DateTime",   "LensModel"]
+    metadata_labels = ["FocalLength: ", "FNumber: ", "ExposureTime: ", "ISO-",            "Exposure Bias: ",   "Exposure Mode: ", "DateTime: ", "Lens: "]
     try:
-        metadata_values = [str(get_exif(filepath, tag)) for tag in metadata_tags]
+        metadata_values = [str(get_cached_metadata(filepath, tag)) for tag in metadata_tags]
         # Format exposure time
         if metadata_values[2] and metadata_values[2] != "None":
             try:
@@ -126,9 +135,8 @@ def get_image_metadata(filepath):
         print(f"An error occurred getting metadata from file {filepath}: {e}")
         return None
 
-
 def mostra_imagem(filepath):
-    global index_atual
+    global index_atual, bracketed_info_text
     if filepath in loaded_files:
         imagem_mostrada['image'] = loaded_files[filepath]
         if file_info_visible:
@@ -137,10 +145,11 @@ def mostra_imagem(filepath):
             if metadata:    file_info_text.set(metadata)
             else:           file_info_text.set("No EXIF")
         else:               file_info_label.place_forget()
+        # temp = get_cached_metadata(filepath, "ExposureMode")
+        bracketed_info_text.set("Bracketed" if get_cached_metadata(filepath, "ExposureMode") == 2 else "")
         root.update()
-        root.title("Eu amo o Bernado - " + str(filepath) + " - " + str(index_atual + 1) + " of " + str(len(filepaths)))
+        root.title(f"Eu amo o Bernado - {filepath} - {index_atual + 1} of {len(filepaths)}")
     else:   print(f"File {filepath} not found in loaded_files.")
-
 
 # We'll define a function to rebuild the file list based on show_all/include_sub_dirs
 filepaths = []
@@ -201,33 +210,33 @@ def copiar(event):
     else:
         copia_arquivo(source_dir, filepath, destination_dir)
         copied_files[filepath] = True
-        if get_exif(filepath, "ExposureMode") != 2:
-            feedback_label_text.set(f"Copied {index_atual + 1}")
+        if get_cached_metadata(filepath, "ExposureMode") != 2:
+            feedback_label_text.set(f"Copied: {index_atual + 1}")
         else:
-            feedback_label_text.set(f"Copied median {filepath}")
-            EV = get_exif(filepath, "ExposureBiasValue")
+            feedback_label_text.set(f"Copied: median {filepath}")
+            EV = get_cached_metadata(filepath, "ExposureBiasValue")
             if not EV:  EV = 0  # fallback
             try:        EV = float(EV)
             except:     EV = 0
 
             darker = file_navigator(filepath, -1)
-            if round(float(get_exif(darker, "ExposureBiasValue") or 0), 1) in [EV - 3, EV - 2, EV - 1]:
+            if round(float(get_cached_metadata(darker, "ExposureBiasValue") or 0), 1) in [EV - 3, EV - 2, EV - 1]:
                 copia_arquivo(source_dir, darker, destination_dir)
                 feedback_label_text.set(feedback_label_text.get() + " and darker")
             else:
                 feedback_label_text.set(feedback_label_text.get() + " but no darker")
 
             lighter = file_navigator(filepath, +1)
-            if round(float(get_exif(lighter, "ExposureBiasValue") or 0), 1) in [EV + 3, EV + 2, EV + 1]:
+            if round(float(get_cached_metadata(lighter, "ExposureBiasValue") or 0), 1) in [EV + 3, EV + 2, EV + 1]:
                 copia_arquivo(source_dir, lighter, destination_dir)
                 feedback_label_text.set(feedback_label_text.get() + " and lighter")
             else:
                 feedback_label_text.set(feedback_label_text.get() + " but no lighter")
 
             if feedback_label_text.get().endswith("and darker and lighter"):
-                feedback_label_text.set(f"Copied 3x {index_atual + 1}")
+                feedback_label_text.set(f"Copied: 3x {index_atual + 1}")
 
-        right(event)
+    right(event)
 
 def proxima(event):
     global index_atual
@@ -293,6 +302,22 @@ root.bind("8", copiar)
 root.bind("i", toggle_file_info)
 root.bind("<Control-q>", exit_feedback)
 
+def copy_rejected(event=None):
+    if not filepaths:   return
+    # join parent dir of source with folder name of source + rejected
+    rejected_dir = os.path.join(os.path.dirname(source_dir), os.path.basename(source_dir)+" anti sel")
+    print(f"rejected_dir {rejected_dir}")
+    if not os.path.exists(rejected_dir): os.makedirs(rejected_dir)
+
+    files_from_destdir = os.listdir(destination_dir)
+    source_dir_files = [path for path, _, _ in os.walk(source_dir)]
+    for filepath in source_dir_files:
+        # if filepath not in files_from_destdir:
+        if filepath not in files_from_destdir:
+            copia_arquivo(source_dir, filepath, rejected_dir)
+            feedback_label_text.set(f"Copied: {filepath} to anti sel")
+root.bind("<Control-x>", copy_rejected)
+
 def open_in_explorer(event=None):
     if not filepaths: return
     run_arg = r'explorer /select, "' + filepaths[index_atual] + '"'
@@ -321,9 +346,7 @@ def start_slideshow(event=None):
     def slideshow_thread_func():
         global index_atual
         while slideshow_running and filepaths:
-            index_atual = (index_atual + 1) % len(filepaths)
-            mostra_imagem(filepaths[index_atual])
-            root.update()
+            right(event)
             time.sleep(slideshow_delay)
 
     if slideshow_running:
@@ -331,6 +354,7 @@ def start_slideshow(event=None):
             slideshow_thread = threading.Thread(target=slideshow_thread_func)
             slideshow_thread.daemon = True
             slideshow_thread.start()
+            # Todo include label "slideshow running: 3s"
     else:
         slideshow_running = False
         if slideshow_thread and slideshow_thread.is_alive():
@@ -434,16 +458,16 @@ def load_some_images(event=None):
 
 root.bind("L", load_some_images)
 
-
 def callAjudante(_=None):
     ajudante = Ajudante.Ajudante(debugging=False, enable_gui=True)
     ajudante.database = os.path.dirname(os.path.dirname(destination_dir))
-    selecao = destination_dir
+    selecao = destination_dir  # selecao for ajudante is where main is putting the files (dest)
+    ajudante.selecao_entry.insert(0, "test")
+    ajudante.selecao_entry.set(0, "test")
     ajudante.formato_quero = ".ARW"
     ajudante.formato_tenho = ".JPG"
     ajudante.dest_dir = os.path.join(selecao, "copiadas")
-    if not os.path.exists(ajudante.dest_dir):
-        os.makedirs(ajudante.dest_dir)
+    if not os.path.exists(ajudante.dest_dir): os.makedirs(ajudante.dest_dir)
     ajudante.wanted_files = [file.replace(ajudante.formato_tenho, ajudante.formato_quero)
                              for path, subdir, files_ in os.walk(selecao)
                              for file in files_]
@@ -452,7 +476,9 @@ def callAjudante(_=None):
     ajudante.selection_images   = set(ajudante.wanted_files)
     ajudante.total_files        = len(ajudante.wanted_files)
 
-    ajudante.file_finder()
+    ajudante.root.update()
+
+    # ajudante.file_finder()
 
 root.bind("<Control-s>", callAjudante)
 
@@ -486,7 +512,7 @@ def open_settings_window():
     tk.Checkbutton(settings_window, text="Include Subdirectories", variable=bool_var_sub_dirs).pack(anchor=tk.W, padx=10, pady=5)
 
     tk.Label(settings_window, text="Slideshow delay (seconds)").pack(anchor=tk.W, padx=10)
-    spin_delay = tk.Spinbox(settings_window, from_=0.0, to=60.0, increment=0.5, textvariable=double_var_delay)
+    spin_delay = tk.Spinbox(settings_window, from_=0.01, to=60.0, increment=0.5, textvariable=double_var_delay)
     spin_delay.pack(anchor=tk.W, padx=10, pady=5)
 
     btn_apply = tk.Button(settings_window, text="Apply", command=apply_settings)
@@ -496,12 +522,91 @@ def open_settings_window():
 
 menu_bar = tk.Menu(root)
 
-settings_menu = tk.Menu(menu_bar, tearoff=0)
-settings_menu.add_command(label="Open Settings Window", command=open_settings_window)
-menu_bar.add_cascade(label="Settings", menu=settings_menu)
-root.config(menu=menu_bar)
+# settings_menu = tk.Menu(menu_bar, tearoff=0)
+# settings_menu.add_command(label="Open Settings Window", command=open_settings_window)
+# menu_bar.add_cascade(label="Settings", menu=settings_menu)
+# root.config(menu=menu_bar)
+# Do i need this?
 
 root.bind_all("<Alt-s>", lambda e: open_settings_window())
+
+def show_histogram(event=None):
+    if not filepaths: return
+    filepath = filepaths[index_atual]
+    img = Image.open(filepath)
+    # Get histogram data (all channels concatenated)
+    histogram = img.convert("L").histogram()
+    import matplotlib.pyplot as plt
+    plt.figure("Histogram")
+    plt.plot(histogram)
+    plt.title("Image Brightness Histogram")
+    plt.xlabel("Pixel value")
+    plt.ylabel("Frequency")
+    plt.show()
+
+root.bind("<Control-h>", show_histogram)
+
+def go_to_image(event=None):
+    global index_atual
+    if not filepaths: return
+    total_images = len(filepaths)
+    target_index_str = simpledialog.askstring("Go To Image", f"Enter image number (1-{total_images}):", parent=root)
+    if target_index_str:
+        try:
+            target_index = int(target_index_str) - 1 # User inputs 1-based index
+            if 0 <= target_index < total_images:
+                index_atual = target_index
+                mostra_imagem(filepaths[index_atual])
+                # Preload next/previous for smoother navigation
+                if len(filepaths) > 1:
+                    next_idx = (index_atual + 1) % total_images
+                    prev_idx = (index_atual - 1) % total_images
+                    if loaded_files.get(filepaths[next_idx]) is None:
+                        carrega(filepaths[next_idx])
+                    if loaded_files.get(filepaths[prev_idx]) is None:
+                        carrega(filepaths[prev_idx])
+            else:
+                messagebox.showerror("Invalid Input", f"Please enter a number between 1 and {total_images}.")
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Please enter a valid number.")
+root.bind("<Control-g>", go_to_image)
+
+menu_bar = tk.Menu(root)
+root.config(menu=menu_bar)
+
+# --- File Menu ---
+file_menu = tk.Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="File", menu=file_menu, underline=0) # Alt+F
+# Add command to change source directory (optional, needs implementation)
+# file_menu.add_command(label="Open Folder...", command=lambda: print("TODO: Implement Open Folder"))
+file_menu.add_command(label="Open in Explorer", command=open_in_explorer, accelerator="Ctrl+E", underline=7) # Alt+F, E
+file_menu.add_command(label="Open with Photos", command=open_with_photos, accelerator="Ctrl+R", underline=10) # Alt+F, P
+file_menu.add_separator()
+file_menu.add_command(label="Copy File(s)", command=copiar, accelerator="Up / 8", underline=0) # Alt+F, C
+file_menu.add_separator()
+file_menu.add_command(label="Exit", command=exit_feedback, accelerator="Ctrl+Q", underline=1) # Alt+F, x
+
+# --- View Menu ---
+view_menu = tk.Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="View", menu=view_menu, underline=0) # Alt+V
+view_menu.add_command(label="Next Image", command=right, accelerator="Right / 6", underline=0) # Alt+V, N
+view_menu.add_command(label="Previous Image", command=left, accelerator="Left / 4", underline=0) # Alt+V, P
+view_menu.add_command(label="Go To...", command=go_to_image, accelerator="Ctrl+G", underline=0) # Alt+V, G
+view_menu.add_separator()
+view_menu.add_command(label="Toggle File Info", command=toggle_file_info, accelerator="i", underline=7) # Alt+V, I
+view_menu.add_command(label="Show Histogram", command=show_histogram, accelerator="Ctrl+H", underline=5) # Alt+V, H
+view_menu.add_separator()
+view_menu.add_command(label="Start/Stop Slideshow", command=start_slideshow, accelerator="s", underline=0) # Alt+V, S
+view_menu.add_separator()
+view_menu.add_command(label="Settings...", command=open_settings_window, underline=0) # Alt+V, t
+
+# --- Tools Menu ---
+tools_menu = tk.Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="Tools", menu=tools_menu, underline=0) # Alt+T
+tools_menu.add_command(label="Load All Images", command=load_all_images, accelerator="L", underline=5) # Alt+T, A
+tools_menu.add_command(label="Load Some Images", command=load_some_images, accelerator="Shift+L", underline=5) # Alt+T, S
+tools_menu.add_separator()
+tools_menu.add_command(label="Run Helper (Ajudante)", command=callAjudante, accelerator="Ctrl+S", underline=4) # Alt+T, H
 
 root.mainloop()
 
@@ -509,3 +614,4 @@ print("fim")
 
 if not os.listdir(destination_dir):
     os.rmdir(destination_dir)
+
