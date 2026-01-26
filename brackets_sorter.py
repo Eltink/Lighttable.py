@@ -57,7 +57,7 @@ def ExposureBiasValue(filename):
 
 
 if __name__ == "__main__":
-    source_dir = r"E:\Selecionar\2023_03_15_MtRR\128\sel\JPGs"
+    source_dir = r"E:\Selecionar\2024_09_18_Islandia\A74\JPGs\Gauzzi islandia pt2 JPG"
     unbracketeds, medians, outliers = process_files(source_dir)
     print(f"Unbracketed: {unbracketeds} \nMedians {len(medians)} \nOutliers/2 {len(outliers)/2}")
 

@@ -3,23 +3,29 @@ from PIL import Image, ImageTk, ExifTags
 # import rawpy # Necessary to read .arw files
 import time
 
-metadata_cache = {}
-def get_cached_metadata(filepath, tag):
-    """
-    Returns the EXIF value for a given filepath/tag pair,
-    caching the result to avoid repeated file I/O.
-    """
-    # If we already have the value in cache, just return it
-    if (filepath, tag) in metadata_cache:
-        return metadata_cache[(filepath, tag)]
+# metadata_cache = {}
+# def get_cached_metadata(filepath, tag):
+#     """
+#     Returns the EXIF value for a given filepath/tag pair,
+#     caching the result to avoid repeated file I/O.
+#     """
+#     # If we already have the value in cache, just return it
+#     if (filepath, tag) in metadata_cache:
+#         return metadata_cache[(filepath, tag)]
+#
+#     # Otherwise, call the original get_exif (defined below or imported),
+#     # then store the result in our cache.
+#     value = get_exif(filepath, tag)
+#     metadata_cache[(filepath, tag)] = value
+#     return value
 
-    # Otherwise, call the original get_exif (defined below or imported),
-    # then store the result in our cache.
-    value = get_exif(filepath, tag)
-    metadata_cache[(filepath, tag)] = value
-    return value
+_metadata_cache = {}
+def get_exif(filepath, gettag):
+    # First check cache
+    key = (filepath, gettag)
+    if key in _metadata_cache:
+        return _metadata_cache[key]
 
-def get_exif(filepath, gettag):  # your original function
     if filepath.endswith('.ARW'):
         # For .ARW files, use rawpy to read the raw data and imageio to convert to RGB
         # raw = rawpy.imread(filepath)
@@ -27,18 +33,20 @@ def get_exif(filepath, gettag):  # your original function
         # img = Image.fromarray(rgb)
         raise "ARW support was disabled"
     else:
-        img = Image.open(filepath)
-    try:
-        exif_data = img._getexif()
-        if exif_data is not None:
-            for k, v in exif_data.items():
-                tag = ExifTags.TAGS.get(k)
-                # Check if this is the specific tag we want, ignoring NaN
-                if tag == gettag and not v != v:
-                    return v
-        return None
-    except (AttributeError, KeyError):
-        return None
+        try:
+            with Image.open(filepath) as img:
+                exif_data = getattr(img, "_getexif", lambda: None)()
+                if exif_data:
+                    for k, v in exif_data.items():
+                        tag = ExifTags.TAGS.get(k)
+                        if tag == gettag and not v != v:  # ignore NaN
+                            _metadata_cache[key] = v
+                            return v
+        except Exception:
+            pass
+
+    _metadata_cache[key] = None
+    return None
 
 def file_navigator(file_path, steps):
     # todo imagem 0000 nao existe
@@ -164,6 +172,7 @@ timing = 0
 def is_it_showable(filepaths):
     gabarito = [0, 1, 1, 1, 0, 1, 0, 1, 0]
     len_filepaths = len(filepaths)
+    if len_filepaths == 0: return []
     bracketed   =   [None] * len_filepaths
     EV          =   [None] * len_filepaths
     mostra      =   [None] * len_filepaths

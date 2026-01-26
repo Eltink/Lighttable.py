@@ -1,3 +1,6 @@
+# Abaixo tem uma versao mais atual do GPT o1
+# Chat de 
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image
@@ -164,3 +167,129 @@ if debugging: open_files()
 
 # Start the Tkinter event loop
 root.mainloop()
+
+
+import os
+import sys
+import time
+from PIL import Image, ExifTags
+
+"""
+Why do some tags have gibberish like \x01\x00\x00 etc?
+----------------------------------------------------
+Certain metadata fields are stored as binary data (e.g. an embedded thumbnail, an ICC color profile,
+or other unknown chunk), which is not textual. When converted to a Python string, it shows up as
+escape sequences like \x01 or other non-readable bytes.
+
+If you want to avoid these fields in your output, you could filter or skip them. Some are still valid info
+but not meant for direct reading as text.
+
+Script usage:
+--------------
+This script will output columns separated by tabs (\t), which Excel can parse when you copy from
+the terminal and paste into an Excel sheet. Each line has the format:
+  filename    field_name    field_value
+
+To run:
+   python compare_metadata.py <directory>
+
+Or simply:
+   python compare_metadata.py
+
+and enter the directory path when prompted.
+"""
+
+def extract_jpg_metadata(img):
+    """
+    Extract metadata from a JPG image using ExifTags.
+    Returns a dictionary of {tag_name: tag_value}.
+    """
+    metadata = {}
+    exif_data = img._getexif()  # Might be None if there's no EXIF
+    if exif_data is not None:
+        for tag_id, value in exif_data.items():
+            tag_name = ExifTags.TAGS.get(tag_id, tag_id)
+            metadata[str(tag_name)] = str(value)
+    return metadata
+
+def extract_png_metadata(img):
+    """
+    Extract metadata from a PNG image using info.
+    Returns a dictionary of {tag_name: tag_value}.
+    """
+    metadata = {}
+    for k, v in img.info.items():
+        metadata[str(k)] = str(v)
+    return metadata
+
+def analyze_directory(dir_path):
+    """
+    Looks for .jpg and .png files in dir_path.
+    Prints tab-separated lines: filename, field_name, field_value.
+    Each line can be copy-pasted into Excel.
+
+    For each file:
+      1) Extract standard EXIF or PNG info
+      2) Print lines for each metadata key
+      3) Print lines for creation time, modification time, last access time, and file size.
+    """
+    valid_extensions = [".jpg", ".jpeg", ".png"]
+    all_files = os.listdir(dir_path)
+    image_files = [f for f in all_files if any(f.lower().endswith(ext) for ext in valid_extensions)]
+
+    # Print a header row, tab-separated
+    print("filename\tfield_name\tfield_value")
+
+    for filename in image_files:
+        filepath = os.path.join(dir_path, filename)
+        try:
+            with Image.open(filepath) as img:
+                if filename.lower().endswith((".jpg", ".jpeg")):
+                    metadata_dict = extract_jpg_metadata(img)
+                else:
+                    metadata_dict = extract_png_metadata(img)
+
+                # Print out any extracted image metadata
+                if not metadata_dict:
+                    print(f"{filename}\tNO_METADATA_FOUND\t")
+                else:
+                    for key, value in metadata_dict.items():
+                        # Replace tabs/newlines with spaces so it doesn't break columns
+                        key_escaped = key.replace("\t", " ").replace("\n", " ")
+                        value_escaped = value.replace("\t", " ").replace("\n", " ")
+                        print(f"{filename}\t{key_escaped}\t{value_escaped}")
+
+            # Now gather OS-level metadata
+            ctime = os.path.getctime(filepath)
+            mtime = os.path.getmtime(filepath)
+            atime = os.path.getatime(filepath)
+            size_bytes = os.path.getsize(filepath)
+            ctime_human = time.ctime(ctime)
+            mtime_human = time.ctime(mtime)
+            atime_human = time.ctime(atime)
+
+            # Print them out tab-separated
+            print(f"{filename}\tos_path_getctime\t{ctime_human}")
+            print(f"{filename}\tos_path_getmtime\t{mtime_human}")
+            print(f"{filename}\tos_path_getatime\t{atime_human}")
+            print(f"{filename}\tos_path_getsize\t{size_bytes}")
+
+        except Exception as e:
+            # If there's an error reading the file, just print an error line.
+            err_str = str(e).replace("\t", " ").replace("\n", " ")
+            print(f"{filename}\tERROR\t{err_str}")
+
+def main():
+    if len(sys.argv) > 1:
+        dir_path = sys.argv[1]
+    else:
+        dir_path = input("Enter the directory path containing your JPG/PNG files: ")
+
+    if not os.path.isdir(dir_path):
+        print("Invalid directory.")
+        sys.exit(1)
+
+    analyze_directory(dir_path)
+
+if __name__ == "__main__":
+    main()

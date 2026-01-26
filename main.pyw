@@ -16,7 +16,7 @@ from copiador_de_arquivo import copia_arquivo
 from tools import *
 
 debugging = 0
-timing = 0
+timing = 1
 show_all = 0
 include_sub_dirs = 1
 slideshow_delay = 3.0
@@ -35,7 +35,7 @@ clipboard_getter.update_idletasks()
 clipboard_getter.destroy()
 
 if os.path.exists(clipboard):   source_dir = clipboard
-elif debugging:                 source_dir = r"E:\Selecionar\2024_09_18_Islandia\A73\JPGs\10040906"
+elif debugging:                 source_dir = r"C:\Users\glauc\Desktop\BK limpando 128 JPG\2025_06_17_España\21650622"
 else:                           source_dir = filedialog.askdirectory()
 
 # Set up the window
@@ -43,13 +43,13 @@ root.title("Eu amo o Bernado")
 root.state('zoomed')
 root.configure(background="black")
 
-#root.after(1, lambda: root.attributes("-topmost", True))
-#root.after(1, lambda: root.focus_force())
+# root.after(1, lambda: root.attributes("-topmost", True))
+# root.after(1, lambda: root.focus_force())
 
-root.lift()
-root.attributes("-topmost", True)
-root.after(1000, lambda: root.attributes("-topmost", False))
-ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
+# root.lift()
+# root.attributes("-topmost", True)
+# root.after(1000, lambda: root.attributes("-topmost", False))
+# ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
 
 # Set up the file information display
 file_info_visible = True
@@ -89,7 +89,7 @@ def carrega(filepath):
             return
     # Handle EXIF orientation
     try:
-        orientation = get_cached_metadata(filepath, "Orientation")
+        orientation = get_exif(filepath, "Orientation")
         if orientation == 8:    img = img.rotate(90, expand=True)
         elif orientation == 3:  img = img.rotate(180, expand=True)
         elif orientation == 6:  img = img.rotate(270, expand=True)
@@ -101,16 +101,16 @@ def carrega(filepath):
     screen_aspect_ratio = screen_width / screen_height
 
     if aspect_ratio < screen_aspect_ratio:
-        img =   img.resize((int(screen_height * aspect_ratio), screen_height), Image.LANCZOS)
-    else: img = img.resize((screen_width, int(screen_width / aspect_ratio)), Image.LANCZOS)
+        img =   img.resize((int(screen_height * aspect_ratio), screen_height), Image.HAMMING) # https://pillow.readthedocs.io/en/stable/handbook/concepts.html#concept-filters
+    else: img = img.resize((screen_width, int(screen_width / aspect_ratio)), Image.HAMMING)
 
     loaded_files[filepath] = ImageTk.PhotoImage(img)  # Converting the image from PIL to TK format
 
 def get_image_metadata(filepath):
-    metadata_tags =   ["FocalLength",   "FNumber",   "ExposureTime",   "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode",    "DateTime",   "LensModel"]
-    metadata_labels = ["FocalLength: ", "FNumber: ", "ExposureTime: ", "ISO-",            "Exposure Bias: ",   "Exposure Mode: ", "DateTime: ", "Lens: "]
+    metadata_tags =   ["FocalLengthIn35mmFilm",   "FNumber",   "ExposureTime",   "ISOSpeedRatings", "ExposureBiasValue", "ExposureMode",    "DateTime",   "LensModel"]
+    metadata_labels = ["FocalLength: ",         "FNumber: ", "ExposureTime: ", "ISO-",            "Exposure Bias: ",   "Exposure Mode: ", "DateTime: ", "Lens: "]
     try:
-        metadata_values = [str(get_cached_metadata(filepath, tag)) for tag in metadata_tags]
+        metadata_values = [str(get_exif(filepath, tag)) for tag in metadata_tags]
         # Format exposure time
         if metadata_values[2] and metadata_values[2] != "None":
             try:
@@ -145,8 +145,8 @@ def mostra_imagem(filepath):
             if metadata:    file_info_text.set(metadata)
             else:           file_info_text.set("No EXIF")
         else:               file_info_label.place_forget()
-        # temp = get_cached_metadata(filepath, "ExposureMode")
-        bracketed_info_text.set("Bracketed" if get_cached_metadata(filepath, "ExposureMode") == 2 else "")
+        # temp = get_exif(filepath, "ExposureMode")
+        bracketed_info_text.set("Bracketed" if get_exif(filepath, "ExposureMode") == 2 else "")
         root.update()
         root.title(f"Eu amo o Bernado - {filepath} - {index_atual + 1} of {len(filepaths)}")
     else:   print(f"File {filepath} not found in loaded_files.")
@@ -154,7 +154,7 @@ def mostra_imagem(filepath):
 # We'll define a function to rebuild the file list based on show_all/include_sub_dirs
 filepaths = []
 
-def reload_filepaths():
+def reload_filepaths(event=None):
     global filepaths, loaded_files, index_atual, show_all, include_sub_dirs
     # Clear old loaded files
     loaded_files.clear()
@@ -162,15 +162,13 @@ def reload_filepaths():
     # Recalculate filepaths based on include_sub_dirs
     if include_sub_dirs == 0:
         # no subdirectories
-        filepaths = [os.path.join(source_dir, file) for file in os.listdir(source_dir)
-                     if any(file.endswith(ext) for ext in valid_extensions)]
+        filepaths = [os.path.join(source_dir, file) for file in os.listdir(source_dir) if any(file.endswith(ext) for ext in valid_extensions)]
     else:
         # with subdirectories
         temp_list = []
         for path, subdir, files_in_dir in os.walk(source_dir):
             for file in files_in_dir:
-                if any(file.endswith(ext) for ext in valid_extensions):
-                    temp_list.append(os.path.join(path, file))
+                if any(file.endswith(ext) for ext in valid_extensions): temp_list.append(os.path.join(path, file))
         filepaths = temp_list
 
     # If no images found, show message
@@ -191,7 +189,6 @@ def reload_filepaths():
         mostra_imagem(filepaths[0])
         if len(filepaths) > 1:
             carrega(filepaths[1])
-
 clipboard_getter = None
 
 t1 = time.time()
@@ -210,24 +207,24 @@ def copiar(event):
     else:
         copia_arquivo(source_dir, filepath, destination_dir)
         copied_files[filepath] = True
-        if get_cached_metadata(filepath, "ExposureMode") != 2:
+        if get_exif(filepath, "ExposureMode") != 2:
             feedback_label_text.set(f"Copied: {index_atual + 1}")
         else:
             feedback_label_text.set(f"Copied: median {filepath}")
-            EV = get_cached_metadata(filepath, "ExposureBiasValue")
+            EV = get_exif(filepath, "ExposureBiasValue")
             if not EV:  EV = 0  # fallback
             try:        EV = float(EV)
             except:     EV = 0
 
             darker = file_navigator(filepath, -1)
-            if round(float(get_cached_metadata(darker, "ExposureBiasValue") or 0), 1) in [EV - 3, EV - 2, EV - 1]:
+            if round(float(get_exif(darker, "ExposureBiasValue") or 0), 1) in [EV - 3, EV - 2, EV - 1]:
                 copia_arquivo(source_dir, darker, destination_dir)
                 feedback_label_text.set(feedback_label_text.get() + " and darker")
             else:
                 feedback_label_text.set(feedback_label_text.get() + " but no darker")
 
             lighter = file_navigator(filepath, +1)
-            if round(float(get_cached_metadata(lighter, "ExposureBiasValue") or 0), 1) in [EV + 3, EV + 2, EV + 1]:
+            if round(float(get_exif(lighter, "ExposureBiasValue") or 0), 1) in [EV + 3, EV + 2, EV + 1]:
                 copia_arquivo(source_dir, lighter, destination_dir)
                 feedback_label_text.set(feedback_label_text.get() + " and lighter")
             else:
@@ -301,6 +298,8 @@ root.bind("4", left)
 root.bind("8", copiar)
 root.bind("i", toggle_file_info)
 root.bind("<Control-q>", exit_feedback)
+root.bind("<Control-R>", reload_filepaths)
+
 
 def copy_rejected(event=None):
     if not filepaths:   return
@@ -309,13 +308,13 @@ def copy_rejected(event=None):
     print(f"rejected_dir {rejected_dir}")
     if not os.path.exists(rejected_dir): os.makedirs(rejected_dir)
 
-    files_from_destdir = os.listdir(destination_dir)
-    source_dir_files = [path for path, _, _ in os.walk(source_dir)]
-    for filepath in source_dir_files:
-        # if filepath not in files_from_destdir:
-        if filepath not in files_from_destdir:
-            copia_arquivo(source_dir, filepath, rejected_dir)
-            feedback_label_text.set(f"Copied: {filepath} to anti sel")
+    files_from_destdir = set(os.listdir(destination_dir)) # This includes manual copies, but doesn't deal well with brackets
+    for root, _, files in os.walk(source_dir):
+        for name in files:
+            if name in files_from_destdir: continue             # If this filename is already in the selection folder, skip it
+            full_path = os.path.join(root, name)                # Full path of the original file
+            copia_arquivo(source_dir, full_path, rejected_dir)  # Copy it to the "anti sel" folder
+            feedback_label_text.set(f"Copied: {full_path} to anti sel")
 root.bind("<Control-x>", copy_rejected)
 
 def open_in_explorer(event=None):
@@ -323,7 +322,7 @@ def open_in_explorer(event=None):
     run_arg = r'explorer /select, "' + filepaths[index_atual] + '"'
     subprocess.run(run_arg)
 
-root.bind("<Control-e>", open_in_explorer)
+root.bind("<Control-r>", open_in_explorer)
 open_in_explorer_button = tk.Button(root, text="Open in Explorer", command=open_in_explorer)
 open_in_explorer_button.pack()
 
@@ -333,7 +332,7 @@ def open_with_photos(_=None):
     file_path = filepaths[index_atual]
     os.system(f'start "" "{file_path}"')
 
-root.bind("<Control-r>", open_with_photos)
+root.bind("<Control-e>", open_with_photos)
 
 slideshow_event = threading.Event()
 slideshow_thread = None
@@ -608,10 +607,10 @@ tools_menu.add_command(label="Load Some Images", command=load_some_images, accel
 tools_menu.add_separator()
 tools_menu.add_command(label="Run Helper (Ajudante)", command=callAjudante, accelerator="Ctrl+S", underline=4) # Alt+T, H
 
+if timing:  print("Time to reach mainloop: ", time.time() - t1)
 root.mainloop()
 
 print("fim")
 
 if not os.listdir(destination_dir):
     os.rmdir(destination_dir)
-
