@@ -1,8 +1,9 @@
 import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageOps # ImageOps to handle rotation from EXIF
 from PIL.ExifTags import TAGS
+from pillow_heif import register_heif_opener
 import os
 import ctypes
 # import rawpy # Necessary to read .arw files
@@ -26,6 +27,7 @@ root = tk.Tk()
 imagem_mostrada = tk.Label(root)
 imagem_mostrada.pack()
 index_atual = 0
+register_heif_opener() # Register the HEIF opener with Pillow so Image.open() knows how to handle .HEIC
 
 # Grab the initial source_dir
 clipboard_getter = tk.Tk()
@@ -75,7 +77,7 @@ def toggle_file_info(event):
     else:                   file_info_label.place_forget()
 
 destination_dir = get_destination_dir(source_dir)
-valid_extensions = [".JPG", ".jpg", ".jpeg", ".png"]  # ".ARW" can be tested if needed
+valid_extensions = [".JPG", ".jpg", ".jpeg", ".png", ".HEIC"]  # ".ARW" can be tested if needed
 loaded_files = {}
 copied_files = {}
 
@@ -88,12 +90,13 @@ def carrega(filepath):
             print(f"Could not open file {filepath}: {e}")
             return
     # Handle EXIF orientation
-    try:
-        orientation = get_exif(filepath, "Orientation")
-        if orientation == 8:    img = img.rotate(90, expand=True)
-        elif orientation == 3:  img = img.rotate(180, expand=True)
-        elif orientation == 6:  img = img.rotate(270, expand=True)
-    except Exception as e:      print(f"An error occurred on loading file {filepath}: {e}")
+    # try:
+    #     orientation = get_exif(filepath, "Orientation")
+    #     if orientation == 8:    img = img.rotate(90, expand=True)
+    #     elif orientation == 3:  img = img.rotate(180, expand=True)
+    #     elif orientation == 6:  img = img.rotate(270, expand=True)
+    # except Exception as e:      print(f"An error occurred on loading file {filepath}: {e}")
+    img = ImageOps.exif_transpose(img) # Handle EXIF orientation
 
     aspect_ratio = img.width / img.height
     screen_width = root.winfo_screenwidth()
@@ -283,7 +286,7 @@ def exit_feedback(event):
                         f"Copied files: {len(copied_files)}\n"\
                         f"Keep rate = {100 * len(copied_files) / len(filepaths):.2f}%\n"\
                         f"Total time = {time.time() - t1:.2f} seconds\n"\
-                        f"Time per image = {len(filepaths) / (time.time() - t1):.2f} Hz bzw FPS\n\n"\
+                        f"Time per 1k image = {1000 * len(filepaths) / (time.time() - t1):.2f} mHz bzw mFPS\n\n"\
                         f"Original - final = saving\n "\
                         f"{source_size:.0f} - {destination_size:.0f} = {(source_size - destination_size):.0f} GB\n\n"\
                         f"Press Enter to close")
@@ -608,6 +611,7 @@ tools_menu.add_separator()
 tools_menu.add_command(label="Run Helper (Ajudante)", command=callAjudante, accelerator="Ctrl+S", underline=4) # Alt+T, H
 
 if timing:  print("Time to reach mainloop: ", time.time() - t1)
+
 root.mainloop()
 
 print("fim")

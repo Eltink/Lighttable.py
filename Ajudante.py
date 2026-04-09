@@ -3,6 +3,7 @@ import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
+import threading
 
 
 class Ajudante:
@@ -55,7 +56,7 @@ class Ajudante:
             self.formato_tenho_entry = tk.Entry(self.root)
             self.formato_tenho_entry.pack()
 
-            self.start_button = tk.Button(self.root, text="Start Copying", command=self.excecuter)
+            self.start_button = tk.Button(self.root, text="Start Copying", command=self.start_thread)
             self.start_button.pack()
 
             self.progress_var_label = tk.Label(self.root, text="Progress bar")
@@ -69,11 +70,21 @@ class Ajudante:
             self.feedback_label = tk.Label(self.root, textvariable=self.feedback_text)
             self.feedback_label.pack()
 
-            self.root.bind('<Return>', self.excecuter)
+            self.root.bind('<Return>', self.start_thread)
 
         if debugging: self.excecuter()
 
         if enable_gui: self.root.mainloop()
+
+    def start_thread(self, event=None):
+        # Disable the start button so the user can't spam it and launch 50 threads
+        self.start_button.config(state=tk.DISABLED)
+        self.feedback_text.set("Starting copy process...")
+
+        # Create and start the background thread
+        copy_thread = threading.Thread(target=self.excecuter)
+        copy_thread.daemon = True  # Ensures the thread dies if you close the main window
+        copy_thread.start()
 
     def excecuter(self, event=None):
         self.get_user_input()
@@ -126,7 +137,7 @@ class Ajudante:
                 if file in self.wanted_files:
                     if path == os.path.join(self.database, "sel copiadas"): continue
                     self.file_copier(path, file)
-                    self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI
+                    # self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI
 
         if len(self.copied_images) != len(self.wanted_files):  # This line checks if all images from sel were copied
             for wanted_file in self.wanted_files:
@@ -157,12 +168,13 @@ class Ajudante:
 
             self.feedback_text.set(f"Copied {self.copied_counter} of {self.total_files} images")
             # self.root.update()
-            self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI. Is this working here too?
+            # self.root.update_idletasks()  # Updates only stuff like progress bar, not entire UI. Is this working here too?
 
         except Exception as e:
             print("Hey! Got this error:", e)
 
     def closer(self):
+        self.start_button.config(state=tk.NORMAL)  # Re-enable the button
         # if self.debugging: return
 
         # Show missing images and completion messages in the GUI
