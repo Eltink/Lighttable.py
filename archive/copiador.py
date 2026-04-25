@@ -1,26 +1,26 @@
-import tkinter as tk
-from PIL import Image, ImageTk
 import os
+import shutil
 
-# Import of configuration parameters
-source_dir = 'C:\\Users\\glauc\\Desktop\\TL raios takaoka\\LR_out'
-files = os.listdir(source_dir)
+def copia_arquivo(src, filename, dst, filetype='jpg', delay=10):
+    """Copies a file from a source location to a destination location.
 
-# Setting up overall environment
-root = tk.Tk() #Create window
-label = tk.Label(root)
-first_file = os.path.join(source_dir,files[0])
-img = Image.open(first_file)
-img_resized = img.resize((1920,1080))
-label.img = ImageTk.PhotoImage(img)
-label['image'] = label.img
-label.pack()
+    Parameters:
+    - src:      a string representing the source file path.
+    - filename: a string representing the name of the file.
+    - dst:      a string representing the destination file path.
+    - filetype: a string representing the file type. Default value is 'jpg'.
+    - delay:    an integer representing the delay time in seconds. Default value is 10.
 
-def pressionou1(event):
-    img = Image.open(os.path.join(source_dir,files[1]))
-    label.img = ImageTk.PhotoImage(img)
-    label['image'] = label.img
+    Returns: None
+    """
 
-root.bind("1", pressionou1)
+    caminho_imagem_base_de_dados = os.path.join(src, filename)  # complete file location
+    # testing if all necessary paths exists
+    for test_case in [src, dst, caminho_imagem_base_de_dados]:
+        if not os.path.exists(test_case):
+            print(f"{test_case} doesnt exist")  # f: replace any {} with that variable.
+            return
 
-root.mainloop()
+    shutil.copy(caminho_imagem_base_de_dados, dst)
+
+    return
