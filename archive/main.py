@@ -1,44 +1,31 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-# if __name__ == '__main__':
-#   print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
-
 import os
 import shutil
 
-base_de_dados = r"C:\Users\glauc\Desktop\BKs\unwetter\10710621"
-selecao = r"C:\Users\glauc\Desktop\Munchen_SEL\Unwetter\temp"
-# destino = os.makedirs(selecao+"\\copiadas")
+# Path to the directory containing the *.arw files
+arw_dir = "path/to/arw/files"
 
-imagens_selecionadas = os.listdir(selecao)
+# Path to the directory containing the wanted *.jpg files
+jpg_dir = "path/to/jpg/files"
 
-if "copiadas" not in imagens_selecionadas:
-    destino = os.makedirs(selecao + "\\copiadas")
-else:
-    destino = os.path.join(selecao, "copiadas")
-imagens_copiadas = os.listdir(destino)
-formato_quero = '.JPG'
-formato_tenho = '.ARW'
-for nome_imagem_selecionada in imagens_selecionadas:
-    if formato_tenho in nome_imagem_selecionada:
-        imagem_quero = nome_imagem_selecionada[:-len(formato_tenho)] + formato_quero
-        caminho_imagem_base_de_dados = os.path.join(base_de_dados, imagem_quero)
-        if imagem_quero not in imagens_copiadas:
+# Create a new directory called "copied"
+copied_dir = "copied"
+os.makedirs(copied_dir, exist_ok=True)
 
-            if os.path.exists(caminho_imagem_base_de_dados):
-                shutil.copy(caminho_imagem_base_de_dados, destino)
-                print("copy " + imagem_quero)
-            else:
-                print("não encontrado: " + imagem_quero)
+# List to store the names of the *.jpg files that do not have an associated *.arw file
+not_found = []
+
+# Iterate over the files in the *.arw directory
+for arw_file in os.listdir(arw_dir):
+    # Check if the file is an *.arw file
+    if arw_file.endswith(".arw"):
+        # Get the corresponding *.jpg file by replacing the file extension
+        jpg_file = arw_file.replace(".arw", ".jpg")
+
+        # Check if the corresponding *.jpg file exists in the jpg_dir directory
+        if os.path.exists(os.path.join(jpg_dir, jpg_file)):
+            # Copy the *.arw file to the "copied" directory
+            shutil.copy(os.path.join(arw_dir, arw_file), copied_dir)
+            # Copy the corresponding *.jpg file to the "copied" directory
+            shutil.copy(os.path.join(jpg_dir, jpg_file), copied_dir)
+        else:
+    # If the corresponding *.jpg file does not exist, add its name to the
