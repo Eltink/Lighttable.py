@@ -1,45 +1,44 @@
+# This is a sample Python script.
+
+# Press Shift+F10 to execute it or replace it with your code.
+# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+
+
+def print_hi(name):
+    # Use a breakpoint in the code line below to debug your script.
+    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+
+
+# Press the green button in the gutter to run the script.
+# if __name__ == '__main__':
+#   print_hi('PyCharm')
+
+# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
 import os
 import shutil
 
-#base_de_dados = r"C:\Users\glauc\Desktop\BKs\unwetter\10010621"
-#selecao = r"C:\Users\glauc\Desktop\Munchen_SEL\Unwetter\Dark frames"
+base_de_dados = r"C:\Users\glauc\Desktop\BKs\unwetter\10710621"
+selecao = r"C:\Users\glauc\Desktop\Munchen_SEL\Unwetter\temp"
 # destino = os.makedirs(selecao+"\\copiadas")
-#imagens_selecionadas = os.listdir(selecao)
 
-#if "copiadas" not in imagens_selecionadas:
- #   os.makedirs(selecao + "\\copiadas")
-
-
-#destino = os.path.join(selecao, "copiadas")
-
-#imagens_copiadas = os.listdir(destino)
-#formato_quero = '.JPG'
-#formato_tenho = '.ARW'
-
-print(os.listdir())
-config_file = open("config.txt",'r')
-input_var = []
-for line in config_file:
-    config_value = (line.split('=')[1]).replace("\n","")
-    input_var.append(config_value)
-base_de_dados, selecao, formato_quero, formato_tenho = input_var
 imagens_selecionadas = os.listdir(selecao)
-destino = os.path.join(selecao, "copiadas")
 
 if "copiadas" not in imagens_selecionadas:
-    os.makedirs(selecao + "\\copiadas")
-
-
-
-
-print(base_de_dados)
+    destino = os.makedirs(selecao + "\\copiadas")
+else:
+    destino = os.path.join(selecao, "copiadas")
+imagens_copiadas = os.listdir(destino)
+formato_quero = '.JPG'
+formato_tenho = '.ARW'
 for nome_imagem_selecionada in imagens_selecionadas:
     if formato_tenho in nome_imagem_selecionada:
         imagem_quero = nome_imagem_selecionada[:-len(formato_tenho)] + formato_quero
         caminho_imagem_base_de_dados = os.path.join(base_de_dados, imagem_quero)
         if imagem_quero not in imagens_copiadas:
+
             if os.path.exists(caminho_imagem_base_de_dados):
                 shutil.copy(caminho_imagem_base_de_dados, destino)
-                # print("copy " + imagem_quero)
+                print("copy " + imagem_quero)
             else:
                 print("não encontrado: " + imagem_quero)
