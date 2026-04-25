@@ -10,6 +10,9 @@ import time
 root = tk.Tk()  # Create window
 imagem_mostrada = tk.Label(root)
 index_atual = 0  # Qual o indice da imagem que esta sendo mostrada
+# Setting up overall environment
+root.title("Eu amo o Bernado")
+root.state('zoomed')
 
 source_dir = filedialog.askdirectory()
 
@@ -17,7 +20,8 @@ source_dir = filedialog.askdirectory()
 #source_dir = 'C:\\Users\\glauc\\Desktop\\sel'
 destination_dir = 'C:\\Users\\glauc\\Desktop\\sel'
 
-files = os.listdir(source_dir)  # O nome das imagens
+valid_extensions = [".jpg", ".jpeg", ".png", ".gif", ".JPG"]  # Add any other image file extensions if necessary
+files = [file for file in os.listdir(source_dir) if any(file.endswith(ext) for ext in valid_extensions)] # O nome das imagens
 loaded_files = dict.fromkeys(files, None)           #Is this prelocating enought? Or does it need to be the same variable format?
 
 # def carrega(filename):
@@ -27,20 +31,25 @@ loaded_files = dict.fromkeys(files, None)           #Is this prelocating enought
 
 def carrega(filename):
     img = Image.open(os.path.join(source_dir, filename))
-    exif_table = {}
-    for k, v in img._getexif().items():
-        tag = TAGS.get(k)
-        exif_table[tag] = v
-    #print(exif_table)
-    if exif_table["Orientation"] == 8:
-        img = img.rotate(90, expand=True)
-        # Rotate the image if it is in portrait orientation
-    elif exif_table["Orientation"] == 6:
-        img = img.rotate(270, expand=True)
-        # Rotate the image if it is in portrait orientation
-    elif exif_table["Orientation"] == 3:
-        img = img.rotate(180, expand=True)
-        # Rotate the image if it is in portrait orientation
+    try:
+        exif_table = {}
+        for k, v in img._getexif().items():
+            tag = TAGS.get(k)
+            exif_table[tag] = v
+        # print(exif_table)
+        if exif_table["Orientation"] == 8:
+            img = img.rotate(90, expand=True)
+            # Rotate the image if it is in portrait orientation
+        elif exif_table["Orientation"] == 6:
+            img = img.rotate(270, expand=True)
+            # Rotate the image if it is in portrait orientation
+        elif exif_table["Orientation"] == 3:
+            img = img.rotate(180, expand=True)
+            # Rotate the image if it is in portrait orientation
+    except AttributeError:
+        print(f"Error: Failed to extract exif tags from file {filename}")
+    except KeyError:
+        print(f"Info: Key 'Orientation' of {filename} was not found")
 
     # Get aspect ratio of the image
     aspect_ratio = img.width / img.height
@@ -66,7 +75,15 @@ def carrega(filename):
     return ImageTk.PhotoImage(img)
 
 
-for file in files[0:2]:                 # Carrega so as 2 primeiras imagens, pra ir mais rapido
+try:
+    for file in files[0:2]:  # Carrega so as 2 primeiras imagens, pra ir mais rapido
+        try:
+            loaded_files[file] = carrega(file)
+        except:
+            print(f"Error: File {file} not found in {source_dir}")
+except:
+    print(f"Error: Source {files} might have problematic structure")
+
     loaded_files[file] = carrega(file)  # O indice do dicio (key) é o nome do arquivo (file) e a "definicao do dicio" é a saída de carrega(file)
 
 if True: # So that code folding is possible
@@ -82,18 +99,33 @@ if True: # So that code folding is possible
             print(f"loaded_files[files[index_atual]] was not found")
             print("This are the available dictionary keys: ", loaded_files.keys())
 
-        if True: #Changing bg color when bracketing
-            img = Image.open(os.path.join(source_dir, file))
-            exif_table = {}
-            for k, v in img._getexif().items():
-                tag = TAGS.get(k)
-                exif_table[tag] = v
-            if exif_table["ExposureMode"] == 0:
-                root.configure(background="black")
-                #print(file, "is not braketed")
-            elif exif_table["ExposureMode"] == 2:
-                root.configure(background="gray")
-                #print(file, "is braketed")
+        if True:  # Changing bg color when bracketing
+            try:
+                img = Image.open(os.path.join(source_dir, file))
+            except FileNotFoundError:
+                print(f"Error: {file} not found")
+                return
+            except OSError as e:
+                print(f"Error opening file: {e}")
+                return
+            try:
+                exif_table = {}
+                for k, v in img._getexif().items():
+                    tag = TAGS.get(k)
+                    exif_table[tag] = v
+            except AttributeError as e:
+                print(f"Error getting exif data: {e}")
+                return
+            try:
+                if exif_table["ExposureMode"] == 0:
+                    root.configure(background="black")
+                    # print(file, "is not braketed")
+                elif exif_table["ExposureMode"] == 2:
+                    root.configure(background="gray")
+                    # print(file, "is braketed")
+            except KeyError:
+                # Handle cases where the ExposureMode is not present in the exif data
+                pass
         return
 
     def copiar(event):
@@ -132,10 +164,6 @@ if True: # So that code folding is possible
             loaded_files[files[index_atual-1]] = carrega(files[index_atual-1])
         return
 
-# Setting up overall environment
-root.title("Eu amo o Bernado")
-root.state('zoomed')
-
 mostra_imagem(files[0])  # Inicializando a janela, com a primeira imagem
 imagem_mostrada.pack()
 
@@ -162,9 +190,11 @@ print("fim")
 
 #TODO
 #Alt menu to change source dir
-#Deal with ARW files
+# files_to_load as an extract of files
 #not crash when there is a folder
+#Deal with ARW files
 #raise a warning when dest dir doesnt exist
 #cleanup warnings and timings
 #overlay camera settings
 #Implement option to hide bracketing
+# Sort based on exposure?
