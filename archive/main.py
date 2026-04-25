@@ -1,6 +1,7 @@
 # Tendando compartimentalizar as funcoes
 import tkinter as tk
 from PIL import Image, ImageTk
+from PIL.ExifTags import TAGS
 import os
 from copiador_de_arquivo import copia_arquivo
 import time
@@ -11,19 +12,55 @@ imagem_mostrada = tk.Label(root)
 index_atual = 0  # Qual o indice da imagem que esta sendo mostrada
 
 # Import of configuration parameters
-source_dir = 'C:\\Users\\glauc\\Desktop\\JPG\\21730129'
+source_dir = 'C:\\Users\\glauc\\Desktop\\kjaf'
 # source_dir = 'C:\\Users\\glauc\\Desktop\\TL raios takaoka\\LR_out'
 # source_dir = 'C:\\Users\\glauc\\Desktop\\Selecionar\\H2\\14421013'
-destination_dir = 'C:\\Users\\glauc\\Desktop\\JPG\\sel'
+destination_dir = 'C:\\Users\\glauc\\Desktop\\insta'
 
 files = os.listdir(source_dir)  # O nome das imagens
 #loaded_files = {}               # Dicionario dizendo quais imagens estão guardadas
 loaded_files = dict.fromkeys(files, None)
 
+# def carrega(filename):
+#     img = Image.open(os.path.join(source_dir, filename))                    # Arquivo de origem(src+filename)
+#     img = img.resize((root.winfo_screenwidth(), root.winfo_screenheight())) # Faz a imagem preencher a tela, nem mais nem menos
+#     return ImageTk.PhotoImage(img)                                          # Mostrar a imagem selecionada na tela
+
 def carrega(filename):
-    img = Image.open(os.path.join(source_dir, filename))                    # Arquivo de origem(src+filename)
-    img = img.resize((root.winfo_screenwidth(), root.winfo_screenheight())) # Faz a imagem preencher a tela, nem mais nem menos
-    return ImageTk.PhotoImage(img)                                          # Mostrar a imagem selecionada na tela
+    img = Image.open(os.path.join(source_dir, filename))
+    exif_table = {}
+    for k, v in img._getexif().items():
+        tag = TAGS.get(k)
+        exif_table[tag] = v
+    print(exif_table)
+    if exif_table["Orientation"] == 8:
+        img = img.rotate(90, expand=True)
+        print("virou")
+        # Rotate the image if it is in portrait orientation
+
+    # Get aspect ratio of the image
+    aspect_ratio = img.width / img.height
+
+    # Get the screen height and width
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    # Get the screen aspect ratio
+    screen_aspect_ratio = screen_width / screen_height
+
+    # Determine the new size for the image
+    if aspect_ratio < screen_aspect_ratio:
+        new_width = int(screen_height * aspect_ratio)
+        new_height = screen_height
+    else:
+        new_width = screen_width
+        new_height = int(screen_width / aspect_ratio)
+
+    # Resize the image to the new size
+    img = img.resize((new_width, new_height))
+
+    return ImageTk.PhotoImage(img)
+
 
 for file in files[0:2]:                 # Carrega so as 2 primeiras imagens, pra ir mais rapido
     loaded_files[file] = carrega(file)  # O indice do dicio (key) é o nome do arquivo (file) e a "definicao do dicio" é a saída de carrega(file)
@@ -80,6 +117,7 @@ if True: # So that code folding is possible
 # Setting up overall environment
 root.title("Eu amo o Bernado")
 root.state('zoomed')
+root.configure(background="black")
 
 mostra_imagem(files[0])  # Inicializando a janela, com a primeira imagem
 imagem_mostrada.pack()
