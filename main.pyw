@@ -29,12 +29,17 @@ imagem_mostrada.pack()
 index_atual = 0
 register_heif_opener() # Register the HEIF opener with Pillow so Image.open() knows how to handle .HEIC
 
+# # Grab the initial source_dir
+# clipboard_getter = tk.Tk()
+# try: clipboard = clipboard_getter.clipboard_get()
+# except: clipboard = ""
+# clipboard_getter.update_idletasks()
+# clipboard_getter.destroy()
+
 # Grab the initial source_dir
-clipboard_getter = tk.Tk()
-try: clipboard = clipboard_getter.clipboard_get()
+try: clipboard = root.clipboard_get()
 except: clipboard = ""
-clipboard_getter.update_idletasks()
-clipboard_getter.destroy()
+# clipboard_getter.update_idletasks()
 
 if os.path.exists(clipboard):   source_dir = clipboard
 elif debugging:                 source_dir = r"C:\Users\glauc\Desktop\BK limpando 128 JPG\2025_06_17_España\21650622"
@@ -44,14 +49,6 @@ else:                           source_dir = filedialog.askdirectory()
 root.title("Eu amo o Bernado")
 root.state('zoomed')
 root.configure(background="black")
-
-# root.after(1, lambda: root.attributes("-topmost", True))
-# root.after(1, lambda: root.focus_force())
-
-# root.lift()
-# root.attributes("-topmost", True)
-# root.after(1000, lambda: root.attributes("-topmost", False))
-# ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
 
 # Set up the file information display
 file_info_visible = True
@@ -555,9 +552,11 @@ def go_to_image(event=None):
     target_index_str = simpledialog.askstring("Go To Image", f"Enter image number (1-{total_images}):", parent=root)
     if target_index_str:
         try:
-            target_index = int(target_index_str) - 1 # User inputs 1-based index
+            target_index = int(target_index_str) - 1
             if 0 <= target_index < total_images:
                 index_atual = target_index
+                if loaded_files.get(filepaths[index_atual]) is None:  # ← load target first
+                    carrega(filepaths[index_atual])
                 mostra_imagem(filepaths[index_atual])
                 # Preload next/previous for smoother navigation
                 if len(filepaths) > 1:
