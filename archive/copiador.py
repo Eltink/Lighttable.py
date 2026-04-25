@@ -1,45 +1,41 @@
-import pywinauto
-import pyHook
-import pythoncom
-import shutil
+import pyWinhook
+import pywin32
+import pyautogui
 import os
+import time
 
-# Define the destination directory
-destination_dir = 'C:\\path\\to\\destination\\directory'
+# Set the destination folder path
+destination_folder = 'C:\\Users\\glauc\\Desktop\\dest'
 
-# Start the Windows Photos application
-app = pywinauto.Application().start('photos.exe')
+# Define a function to copy the current image and paste it into the destination folder
+def copy_and_paste_image():
+    # Use pyautogui to select the current image and copy it
+    pyautogui.hotkey('ctrl', 'a')  # select the current image
+    pyautogui.hotkey('ctrl', 'c')  # copy the selected image
 
-# Wait for the main window to appear
-app.Photos.wait('ready')
+    # Open the destination folder
+    os.startfile(destination_folder)  # open the folder
 
-# Open a photo
-app.Photos.menu_select('File->Open')
-app.Open.Edit1.set_text('C:\\path\\to\\photo.jpg')
-app.Open.Open.click()
+    # Wait for the folder to open
+    time.sleep(5)
 
-# Function to copy the opened photo to the destination directory
-def copy_photo():
-    # Get the current photo file path
-    file_path = app.Photos.Edit.get_value()
+    # Use pyautogui to paste the copied image into the destination folder
+    pyautogui.hotkey('ctrl', 'v')  # paste the copied image
 
-    # Copy the file to the destination directory
-    shutil.copy(file_path, destination_dir)
-
-# Function to handle key press events
-def on_key_down(event):
-    if event.Ascii == ord('A'):
-        copy_photo()
-    return True
+# Define a key press callback function
+def on_key_press(event):
+    # Check if the "1" key was pressed
+    if event.Ascii == 49:
+        copy_and_paste_image()
 
 # Create a hook manager
-hm = pyHook.HookManager()
+hm = pyWinhook.HookManager()
 
-# Register the key press event handler
-hm.KeyDown = on_key_down
+# Register the key press callback function
+hm.KeyDown = on_key_press
 
-# Set the hook
+# Set the hook and start monitoring key presses
 hm.HookKeyboard()
 
-# Start the event loop
-pythoncom.PumpMessages()
+# Run the hook manager
+pywin32.PumpMessages()
